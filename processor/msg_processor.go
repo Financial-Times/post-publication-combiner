@@ -3,11 +3,11 @@ package processor
 import (
 	"encoding/json"
 	"errors"
+	"github.com/Financial-Times/go-logger"
 	"github.com/Financial-Times/message-queue-go-producer/producer"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"github.com/Financial-Times/post-publication-combiner/model"
 	"github.com/Financial-Times/post-publication-combiner/utils"
-	"github.com/Sirupsen/logrus"
 	"github.com/dchest/uniuri"
 	"net/http"
 	"reflect"
@@ -96,7 +96,7 @@ func (p *MsgProcessor) ForceMessagePublish(uuid string, tid string) error {
 
 	if tid == "" {
 		tid = "tid_force_publish" + uniuri.NewLen(10) + "_post_publication_combiner"
-		logrus.Infof("Generated tid: %d", tid)
+		logger.NewEntry(tid).Info("Generated tid")
 	}
 
 	h := map[string]string{
@@ -107,18 +107,17 @@ func (p *MsgProcessor) ForceMessagePublish(uuid string, tid string) error {
 	//get combined message
 	combinedMSG, err := p.DataCombiner.GetCombinedModel(uuid)
 	if err != nil {
-		logrus.Errorf("%v - Error obtaining the combined message, it will be skipped. %v", tid, err)
+		logger.NewEntry(tid).Error("Error obtaining the combined message, it will be skipped")
 		return err
 	}
 
 	if combinedMSG.Content.UUID == "" && combinedMSG.Metadata == nil {
-		err := NotFoundError
-		logrus.Errorf("%v - Could not find content with uuid %s. %v", tid, uuid, err)
-		return err
+		logger.NewEntry(tid).WithUUID(uuid).WithError(NotFoundError).Error("Could not find content")
+		return NotFoundError
 	}
 
 	//forward data
-	return p.filterAndForwardMsg(h, &combinedMSG, tid)
+	return p.filterAndForwardMsg(h, &combinedMSG, tid, true, "")
 }
 
 func (p *MsgProcessor) processContentMsg(m consumer.Message) {
@@ -130,13 +129,13 @@ func (p *MsgProcessor) processContentMsg(m consumer.Message) {
 	var cm model.MessageContent
 	b := []byte(m.Body)
 	if err := json.Unmarshal(b, &cm); err != nil {
-		logrus.Errorf("Could not unmarshall message with TID=%v, error=%v", tid, err.Error())
+		logger.NewMonitoringEntry("Combine", tid, "").WithError(err).Error("Could not unmarshall message")
 		return
 	}
 
 	// wordpress, next-video, methode-article - the system origin is not enough to help us filtering. Filter by contentUri.
 	if !containsSubstringOf(p.config.SupportedContentURIs, cm.ContentURI) {
-		logrus.Infof("%v - Skipped unsupported content with contentUri: %v. ", tid, cm.ContentURI)
+		logger.NewEntry(tid).Infof("Skipped unsupported content with contentUri: %v", cm.ContentURI)
 		return
 	}
 
@@ -148,19 +147,20 @@ func (p *MsgProcessor) processContentMsg(m consumer.Message) {
 	}
 
 	if cm.ContentModel.UUID == "" {
-		logrus.Errorf("UUID not found after message marshalling, skipping message with TID=%v.", tid)
+		err := errors.New("UUID not found after message marshalling")
+		logger.NewMonitoringEntry("Combine", tid, "").WithError(err).Error("UUID not found after message marshalling, skipping message")
 		return
 	}
 
 	//combine data
 	combinedMSG, err := p.DataCombiner.GetCombinedModelForContent(cm.ContentModel, getPlatformVersion(cm.ContentURI))
 	if err != nil {
-		logrus.Errorf("%v - Error obtaining the combined message. Metadata could not be read. Message will be skipped. %v", tid, err)
+		logger.NewMonitoringEntry("Combine", tid, "").WithError(err).Error("Error obtaining the combined message. Metadata could not be read. Message will be skipped")
 		return
 	}
 
 	//forward data
-	p.filterAndForwardMsg(m.Headers, &combinedMSG, tid)
+	p.filterAndForwardMsg(m.Headers, &combinedMSG, tid, false, "")
 }
 
 func (p *MsgProcessor) processMetadataMsg(m consumer.Message) {
@@ -171,7 +171,7 @@ func (p *MsgProcessor) processMetadataMsg(m consumer.Message) {
 
 	//decide based on the origin system header - whether you want to process the message or not
 	if !containsSubstringOf(p.config.SupportedHeaders, h) {
-		logrus.Infof("%v - Skipped unsupported annotations with Origin-System-Id: %v. ", tid, h)
+		logger.NewEntry(tid).Infof("Skipped unsupported annotations with Origin-System-Id: %v.", h)
 		return
 	}
 
@@ -179,32 +179,36 @@ func (p *MsgProcessor) processMetadataMsg(m consumer.Message) {
 	var ann model.Annotations
 	b := []byte(m.Body)
 	if err := json.Unmarshal(b, &ann); err != nil {
-		logrus.Errorf("Could not unmarshall message with TID=%v, error=%v", tid, err.Error())
+		logger.NewMonitoringEntry("Combine", tid, "Annotations").WithError(err).Error("Could not unmarshall message")
 		return
 	}
 
 	//combine data
 	combinedMSG, err := p.DataCombiner.GetCombinedModelForAnnotations(ann, getPlatformVersion(h))
 	if err != nil {
-		logrus.Errorf("%v - Error obtaining the combined message. Content couldn't get read. Message will be skipped. %v", tid, err)
+		logger.NewMonitoringEntry("Combine", tid, "Annotations").WithError(err).Error("Error obtaining the combined message. Content couldn't get read. Message will be skipped")
 		return
 	}
-	p.filterAndForwardMsg(m.Headers, &combinedMSG, tid)
+	p.filterAndForwardMsg(m.Headers, &combinedMSG, tid, false, "Annotations")
 }
 
-func (p *MsgProcessor) filterAndForwardMsg(headers map[string]string, combinedMSG *model.CombinedModel, tid string) error {
+func (p *MsgProcessor) filterAndForwardMsg(headers map[string]string, combinedMSG *model.CombinedModel, tid string, isForced bool, contentType string) error {
 	if !combinedMSG.Content.MarkedDeleted && !isTypeAllowed(p.config.SupportedContentTypes, combinedMSG.Content.Type) {
-		logrus.Infof("%v - Skipped unsupported content with type: %v", tid, combinedMSG.Content.Type)
+		logger.NewEntry(tid).Infof("Skipped unsupported content with type: %v", combinedMSG.Content.Type)
 		return InvalidContentTypeError
 	}
 
 	//forward data
 	err := p.forwardMsg(headers, combinedMSG)
 	if err != nil {
-		logrus.Errorf("%v - Error sending transformed message to queue: %v", tid, err)
+		logger.NewMonitoringEntry("Combine", tid, contentType).WithUUID(combinedMSG.UUID).WithError(err).Error("Error sending transformed message to queue")
 		return err
 	}
-	logrus.Infof("%v - Mapped and sent for uuid: %v", tid, combinedMSG.UUID)
+	if !isForced {
+		logger.NewMonitoringEntry("Combine", tid, contentType).WithUUID(combinedMSG.UUID).Info("Successfully combined")
+	} else {
+		logger.NewEntry(tid).WithUUID(combinedMSG.UUID).Info("Successfully combined")
+	}
 	return nil
 }
 
@@ -227,9 +231,10 @@ func extractTID(headers map[string]string) string {
 	tid := headers["X-Request-Id"]
 
 	if tid == "" {
-		logrus.Infof("Couldn't extract transaction id - X-Request-Id header could not be found.")
+		logger.Infof(nil, "Couldn't extract transaction id - X-Request-Id header could not be found.")
 		tid = "tid_" + uniuri.NewLen(10) + "_post_publication_combiner"
-		logrus.Infof("Generated tid: %d", tid)
+		logger.NewEntry(tid).Info("Couldn't extract transaction id - X-Request-Id header could not be found.")
+		logger.NewEntry(tid).Info("Generated tid")
 	}
 
 	return tid

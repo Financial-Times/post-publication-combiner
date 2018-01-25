@@ -1,8 +1,9 @@
 package main
 
 import (
+	"errors"
+	"github.com/Financial-Times/go-logger"
 	"github.com/Financial-Times/post-publication-combiner/processor"
-	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/mux"
 	"github.com/satori/go.uuid"
 	"net/http"
@@ -23,7 +24,7 @@ func (handler *requestHandler) postMessage(writer http.ResponseWriter, request *
 	defer request.Body.Close()
 
 	if !isValidUUID(uuid) {
-		logrus.Errorf("Invalid UUID %s", uuid)
+		logger.NewEntry(transactionID).WithError(errors.New("Invalid UUID")).Error("Invalid UUID")
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 

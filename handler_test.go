@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"github.com/Financial-Times/go-logger"
 )
 
 func TestPostMessage(t *testing.T) {
@@ -28,7 +29,7 @@ func TestPostMessage(t *testing.T) {
 	}
 
 	p := &DummyProcessor{t: t}
-
+	logger.InitDefaultLogger("")
 	rh := requestHandler{processor: p}
 	servicesRouter := mux.NewRouter()
 	servicesRouter.HandleFunc("/{id}", rh.postMessage).Methods("POST")

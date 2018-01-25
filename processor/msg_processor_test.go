@@ -3,15 +3,16 @@ package processor
 import (
 	"encoding/json"
 	"errors"
+	"github.com/Financial-Times/go-logger"
 	"github.com/Financial-Times/message-queue-go-producer/producer"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"github.com/Financial-Times/post-publication-combiner/model"
-	"github.com/Sirupsen/logrus"
-	testLogger "github.com/Sirupsen/logrus/hooks/test"
 	"github.com/golang/go/src/pkg/fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
+
+const appName = "post-publication-combiner"
 
 func TestProcessContentMsg_Unmarshall_Error(t *testing.T) {
 
@@ -20,15 +21,14 @@ func TestProcessContentMsg_Unmarshall_Error(t *testing.T) {
 		Body:    `body`,
 	}
 
-	hook := testLogger.NewGlobal()
-	assert.Nil(t, hook.LastEntry())
-	assert.Equal(t, 0, len(hook.Entries))
+	hook := logger.NewTestHook("post-publication-combiner")
 
 	p := &MsgProcessor{}
 	p.processContentMsg(m)
 
-	assert.Equal(t, logrus.ErrorLevel, hook.LastEntry().Level)
-	assert.Contains(t, hook.LastEntry().Message, "Could not unmarshall message with TID=")
+	assert.Equal(t, "error", hook.LastEntry().Level.String())
+	assert.Contains(t, hook.LastEntry().Message, "Could not unmarshall message")
+	assert.Equal(t, hook.LastEntry().Data["transaction_id"], "some-tid1")
 	assert.Equal(t, 1, len(hook.Entries))
 
 }
@@ -43,14 +43,15 @@ func TestProcessContentMsg_UnSupportedContent(t *testing.T) {
 	config := MsgProcessorConfig{SupportedContentURIs: allowedUris}
 	p := &MsgProcessor{config: config}
 
-	hook := testLogger.NewGlobal()
+	hook := logger.NewTestHook(appName)
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
 	p.processContentMsg(m)
 
-	assert.Equal(t, logrus.InfoLevel, hook.LastEntry().Level)
-	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("%v - Skipped unsupported content with contentUri: %v.", m.Headers["X-Request-Id"], "http://unsupported-content-uri/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b"))
+	assert.Equal(t, "info", hook.LastEntry().Level.String())
+	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("Skipped unsupported content with contentUri: %v", "http://unsupported-content-uri/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b"))
+	assert.Equal(t, hook.LastEntry().Data["transaction_id"], "some-tid1")
 	assert.Equal(t, 1, len(hook.Entries))
 }
 
@@ -64,14 +65,15 @@ func TestProcessContentMsg_SupportedContent_EmptyUUID(t *testing.T) {
 	config := MsgProcessorConfig{SupportedContentURIs: allowedUris}
 	p := &MsgProcessor{config: config}
 
-	hook := testLogger.NewGlobal()
+	hook := logger.NewTestHook(appName)
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
 	p.processContentMsg(m)
 
-	assert.Equal(t, logrus.ErrorLevel, hook.LastEntry().Level)
-	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("UUID not found after message marshalling, skipping message with TID=%v.", m.Headers["X-Request-Id"]))
+	assert.Equal(t, "error", hook.LastEntry().Level.String())
+	assert.Contains(t, hook.LastEntry().Message, "UUID not found after message marshalling")
+	assert.Equal(t, hook.LastEntry().Data["transaction_id"], "some-tid1")
 	assert.Equal(t, 1, len(hook.Entries))
 }
 
@@ -86,14 +88,15 @@ func TestProcessContentMsg_Combiner_Errors(t *testing.T) {
 	combiner := DummyDataCombiner{err: errors.New("some error")}
 	p := &MsgProcessor{config: config, DataCombiner: combiner}
 
-	hook := testLogger.NewGlobal()
+	hook := logger.NewTestHook(appName)
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
 	p.processContentMsg(m)
 
-	assert.Equal(t, logrus.ErrorLevel, hook.LastEntry().Level)
-	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("%v - Error obtaining the combined message. Metadata could not be read. Message will be skipped. %v", m.Headers["X-Request-Id"], combiner.err.Error()))
+	assert.Equal(t, "error", hook.LastEntry().Level.String())
+	assert.Contains(t, hook.LastEntry().Message, "Error obtaining the combined message. Metadata could not be read. Message will be skipped.")
+	assert.Equal(t, hook.LastEntry().Data["transaction_id"], "some-tid1")
 	assert.Equal(t, 1, len(hook.Entries))
 }
 
@@ -111,14 +114,15 @@ func TestProcessContentMsg_Forwarder_Errors(t *testing.T) {
 
 	p := &MsgProcessor{config: config, DataCombiner: combiner, MsgProducer: producer}
 
-	hook := testLogger.NewGlobal()
+	hook := logger.NewTestHook(appName)
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
 	p.processContentMsg(m)
 
-	assert.Equal(t, logrus.ErrorLevel, hook.LastEntry().Level)
-	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("%v - Error sending transformed message to queue: %v", m.Headers["X-Request-Id"], producer.expError.Error()))
+	assert.Equal(t, "error", hook.LastEntry().Level.String())
+	assert.Contains(t, hook.LastEntry().Message, "Error sending transformed message to queue")
+	assert.Equal(t, hook.LastEntry().Data["transaction_id"], "some-tid1")
 	assert.Equal(t, 1, len(hook.Entries))
 }
 
@@ -141,14 +145,16 @@ func TestProcessContentMsg_Successfully_Forwarded(t *testing.T) {
 	producer := DummyMsgProducer{t: t, expUUID: combiner.data.UUID, expMsg: expMsg}
 	p := &MsgProcessor{config: config, DataCombiner: combiner, MsgProducer: producer}
 
-	hook := testLogger.NewGlobal()
+	hook := logger.NewTestHook(appName)
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
 	p.processContentMsg(m)
 
-	assert.Equal(t, logrus.InfoLevel, hook.LastEntry().Level)
-	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("%v - Mapped and sent for uuid: %v", m.Headers["X-Request-Id"], combiner.data.UUID))
+	assert.Equal(t, "info", hook.LastEntry().Level.String())
+	assert.Contains(t, hook.LastEntry().Message, "Successfully combined")
+	assert.Equal(t, hook.LastEntry().Data["transaction_id"], "some-tid1")
+	assert.Equal(t, hook.LastEntry().Data["uuid"], "0cef259d-030d-497d-b4ef-e8fa0ee6db6b")
 	assert.Equal(t, 1, len(hook.Entries))
 }
 
@@ -174,14 +180,16 @@ func TestProcessContentMsg_DeleteEvent_Successfully_Forwarded(t *testing.T) {
 	producer := DummyMsgProducer{t: t, expUUID: combiner.data.UUID, expMsg: expMsg}
 	p := &MsgProcessor{config: config, DataCombiner: combiner, MsgProducer: producer}
 
-	hook := testLogger.NewGlobal()
+	hook := logger.NewTestHook(appName)
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
 	p.processContentMsg(m)
 
-	assert.Equal(t, logrus.InfoLevel, hook.LastEntry().Level)
-	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("%v - Mapped and sent for uuid: %v", m.Headers["X-Request-Id"], combiner.data.UUID))
+	assert.Equal(t, "info", hook.LastEntry().Level.String())
+	assert.Contains(t, hook.LastEntry().Message, "Successfully combined")
+	assert.Equal(t, hook.LastEntry().Data["transaction_id"], "some-tid1")
+	assert.Equal(t, hook.LastEntry().Data["uuid"], "0cef259d-030d-497d-b4ef-e8fa0ee6db6b")
 	assert.Equal(t, 1, len(hook.Entries))
 }
 
@@ -195,14 +203,15 @@ func TestProcessMetadataMsg_UnSupportedOrigins(t *testing.T) {
 	config := MsgProcessorConfig{SupportedHeaders: allowedOrigins}
 	p := &MsgProcessor{config: config}
 
-	hook := testLogger.NewGlobal()
+	hook := logger.NewTestHook(appName)
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
 	p.processMetadataMsg(m)
 
-	assert.Equal(t, logrus.InfoLevel, hook.LastEntry().Level)
-	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("%v - Skipped unsupported annotations with Origin-System-Id: %v. ", m.Headers["X-Request-Id"], m.Headers["Origin-System-Id"]))
+	assert.Equal(t, "info", hook.LastEntry().Level.String())
+	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("Skipped unsupported annotations with Origin-System-Id: %v", m.Headers["Origin-System-Id"]))
+	assert.Equal(t, "some-tid1", hook.LastEntry().Data["transaction_id"])
 	assert.Equal(t, 1, len(hook.Entries))
 }
 
@@ -216,14 +225,15 @@ func TestProcessMetadataMsg_SupportedOrigin_Unmarshall_Error(t *testing.T) {
 	config := MsgProcessorConfig{SupportedHeaders: allowedOrigins}
 	p := &MsgProcessor{config: config}
 
-	hook := testLogger.NewGlobal()
+	hook := logger.NewTestHook(appName)
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
 	p.processMetadataMsg(m)
 
-	assert.Equal(t, logrus.ErrorLevel, hook.LastEntry().Level)
-	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("Could not unmarshall message with TID=%v, error=", m.Headers["X-Request-Id"]))
+	assert.Equal(t, "error", hook.LastEntry().Level.String())
+	assert.Contains(t, hook.LastEntry().Message, "Could not unmarshall message")
+	assert.Equal(t, "some-tid1", hook.LastEntry().Data["transaction_id"])
 	assert.Equal(t, 1, len(hook.Entries))
 }
 
@@ -238,14 +248,15 @@ func TestProcessMetadataMsg_Combiner_Errors(t *testing.T) {
 	combiner := DummyDataCombiner{err: errors.New("some error")}
 	p := &MsgProcessor{config: config, DataCombiner: combiner}
 
-	hook := testLogger.NewGlobal()
+	hook := logger.NewTestHook(appName)
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
 	p.processMetadataMsg(m)
 
-	assert.Equal(t, logrus.ErrorLevel, hook.LastEntry().Level)
-	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("%v - Error obtaining the combined message. Content couldn't get read. Message will be skipped.", m.Headers["X-Request-Id"]))
+	assert.Equal(t, "error", hook.LastEntry().Level.String())
+	assert.Contains(t, hook.LastEntry().Message, "Error obtaining the combined message. Content couldn't get read. Message will be skipped")
+	assert.Equal(t, "some-tid1", hook.LastEntry().Data["transaction_id"])
 	assert.Equal(t, 1, len(hook.Entries))
 }
 
@@ -263,14 +274,15 @@ func TestProcessMetadataMsg_Forwarder_Errors(t *testing.T) {
 
 	p := &MsgProcessor{config: config, DataCombiner: combiner, MsgProducer: producer}
 
-	hook := testLogger.NewGlobal()
+	hook := logger.NewTestHook(appName)
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
 	p.processMetadataMsg(m)
 
-	assert.Equal(t, logrus.ErrorLevel, hook.LastEntry().Level)
-	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("%v - Error sending transformed message to queue:", m.Headers["X-Request-Id"]))
+	assert.Equal(t, "error", hook.LastEntry().Level.String())
+	assert.Contains(t, hook.LastEntry().Message, "Error sending transformed message to queue")
+	assert.Equal(t, "some-tid1", hook.LastEntry().Data["transaction_id"])
 	assert.Equal(t, 1, len(hook.Entries))
 }
 
@@ -319,14 +331,16 @@ func TestProcessMetadataMsg_Successfully_Forwarded(t *testing.T) {
 	producer := DummyMsgProducer{t: t, expUUID: combiner.data.UUID, expMsg: expMsg}
 	p := &MsgProcessor{config: config, DataCombiner: combiner, MsgProducer: producer}
 
-	hook := testLogger.NewGlobal()
+	hook := logger.NewTestHook(appName)
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
 	p.processMetadataMsg(m)
 
-	assert.Equal(t, logrus.InfoLevel, hook.LastEntry().Level)
-	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("%v - Mapped and sent for uuid: %v", m.Headers["X-Request-Id"], combiner.data.UUID))
+	assert.Equal(t, "info", hook.LastEntry().Level.String())
+	assert.Contains(t, hook.LastEntry().Message, "Successfully combined")
+	assert.Equal(t, "some-tid1", hook.LastEntry().Data["transaction_id"])
+	assert.Equal(t, combiner.data.UUID, hook.LastEntry().Data["uuid"])
 	assert.Equal(t, 1, len(hook.Entries))
 }
 
@@ -372,15 +386,17 @@ func TestForceMessageWithTID(t *testing.T) {
 	producer := DummyMsgProducer{t: t, expUUID: combiner.data.UUID, expTID: tid, expMsg: expMsg}
 	p := &MsgProcessor{config: config, DataCombiner: combiner, MsgProducer: producer}
 
-	hook := testLogger.NewGlobal()
+	hook := logger.NewTestHook(appName)
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
 	err := p.ForceMessagePublish(combiner.data.UUID, tid)
 	assert.NoError(t, err)
 
-	assert.Equal(t, logrus.InfoLevel, hook.LastEntry().Level)
-	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("%v - Mapped and sent for uuid: %v", expMsg.Headers["X-Request-Id"], combiner.data.UUID))
+	assert.Equal(t, "info", hook.LastEntry().Level.String())
+	assert.Contains(t, hook.LastEntry().Message, "Successfully combined")
+	assert.Equal(t, "transaction_id_1", hook.LastEntry().Data["transaction_id"])
+	assert.Equal(t, combiner.data.UUID, hook.LastEntry().Data["uuid"])
 	assert.Equal(t, 1, len(hook.Entries))
 }
 
@@ -427,15 +443,18 @@ func TestForceMessageWithoutTID(t *testing.T) {
 	producer := DummyMsgProducer{t: t, expUUID: combiner.data.UUID, expMsg: expMsg}
 	p := &MsgProcessor{config: config, DataCombiner: combiner, MsgProducer: producer}
 
-	hook := testLogger.NewGlobal()
+	hook := logger.NewTestHook(appName)
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
 	err := p.ForceMessagePublish(combiner.data.UUID, emptyTID)
 	assert.NoError(t, err)
 
-	assert.Equal(t, logrus.InfoLevel, hook.LastEntry().Level)
-	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("%v - Mapped and sent for uuid: %v", expMsg.Headers["X-Request-Id"], combiner.data.UUID))
+	assert.Equal(t, "info", hook.LastEntry().Level.String())
+	assert.Contains(t, hook.LastEntry().Message, "Successfully combined")
+	assert.Contains(t, hook.LastEntry().Data["transaction_id"], "tid_force_publish")
+	assert.Contains(t, hook.LastEntry().Data["transaction_id"], "post_publication_combiner")
+	assert.Equal(t, combiner.data.UUID, hook.LastEntry().Data["uuid"])
 	assert.Equal(t, 2, len(hook.Entries))
 }
 
@@ -446,15 +465,14 @@ func TestForceMessageCombinerError(t *testing.T) {
 	combiner := DummyDataCombiner{err: errors.New("some error")}
 	p := &MsgProcessor{config: config, DataCombiner: combiner}
 
-	hook := testLogger.NewGlobal()
+	hook := logger.NewTestHook(appName)
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
 	err := p.ForceMessagePublish(combiner.data.UUID, "")
 	assert.Equal(t, combiner.err, err)
-
-	assert.Equal(t, logrus.ErrorLevel, hook.LastEntry().Level)
-	assert.Contains(t, hook.LastEntry().Message, "Error obtaining the combined message, it will be skipped. some error")
+	assert.Equal(t, "error", hook.LastEntry().Level.String())
+	assert.Contains(t, hook.LastEntry().Message, "Error obtaining the combined message")
 	assert.Equal(t, 2, len(hook.Entries))
 }
 
@@ -465,7 +483,7 @@ func TestForceMessageNotFoundError(t *testing.T) {
 	combiner := DummyDataCombiner{}
 	p := &MsgProcessor{config: config, DataCombiner: combiner}
 
-	hook := testLogger.NewGlobal()
+	hook := logger.NewTestHook(appName)
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
@@ -473,8 +491,9 @@ func TestForceMessageNotFoundError(t *testing.T) {
 	err := p.ForceMessagePublish(uuid, "")
 	assert.Equal(t, NotFoundError, err)
 
-	assert.Equal(t, logrus.ErrorLevel, hook.LastEntry().Level)
-	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("Could not find content with uuid %s. Content not found", uuid))
+	assert.Equal(t, "error", hook.LastEntry().Level.String())
+	assert.Contains(t, hook.LastEntry().Message, "Could not find content")
+	assert.Equal(t, uuid, hook.LastEntry().Data["uuid"])
 	assert.Equal(t, 2, len(hook.Entries))
 }
 
@@ -512,7 +531,7 @@ func TestForceMessageFilteredError(t *testing.T) {
 		}}
 	p := &MsgProcessor{config: config, DataCombiner: combiner}
 
-	hook := testLogger.NewGlobal()
+	hook := logger.NewTestHook(appName)
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
@@ -520,7 +539,7 @@ func TestForceMessageFilteredError(t *testing.T) {
 	err := p.ForceMessagePublish(uuid, "")
 	assert.Equal(t, InvalidContentTypeError, err)
 
-	assert.Equal(t, logrus.InfoLevel, hook.LastEntry().Level)
+	assert.Equal(t, "info", hook.LastEntry().Level.String())
 	assert.Contains(t, hook.LastEntry().Message, "Skipped unsupported content with type: Content")
 	assert.Equal(t, 2, len(hook.Entries))
 }
@@ -562,15 +581,16 @@ func TestForceMessageProducerError(t *testing.T) {
 	producer := DummyMsgProducer{t: t, expError: errors.New("some error")}
 	p := &MsgProcessor{config: config, DataCombiner: combiner, MsgProducer: producer}
 
-	hook := testLogger.NewGlobal()
+	hook := logger.NewTestHook(appName)
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
 	err := p.ForceMessagePublish(combiner.data.UUID, "")
 	assert.Equal(t, producer.expError, err)
 
-	assert.Equal(t, logrus.ErrorLevel, hook.LastEntry().Level)
-	assert.Contains(t, hook.LastEntry().Message, "Error sending transformed message to queue: some error")
+	assert.Equal(t, "error", hook.LastEntry().Level.String())
+	assert.Contains(t, hook.LastEntry().Message, "Error sending transformed message to queue")
+	assert.Equal(t, "some error", hook.LastEntry().Data["error"].(error).Error())
 	assert.Equal(t, 2, len(hook.Entries))
 }
 
@@ -656,6 +676,7 @@ func TestExtractTIDForEmptyHeader(t *testing.T) {
 		"Some-Other-Header": "some-value",
 	}
 
+	logger.InitDefaultLogger(appName)
 	actualTID := extractTID(headers)
 	assert.NotEmpty(actualTID)
 	assert.Contains(actualTID, "tid_")
