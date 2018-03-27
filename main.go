@@ -11,10 +11,10 @@ import (
 
 	"github.com/Financial-Times/base-ft-rw-app-go/baseftrwapp"
 	health "github.com/Financial-Times/go-fthealth/v1_1"
+	logger "github.com/Financial-Times/go-logger"
 	"github.com/Financial-Times/http-handlers-go/httphandlers"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	status "github.com/Financial-Times/service-status-go/httphandlers"
-	"github.com/Sirupsen/logrus"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/jawher/mow.cli"
@@ -24,9 +24,11 @@ import (
 	"github.com/Financial-Times/post-publication-combiner/utils"
 )
 
+const serviceName = "post-publication-combiner"
+
 func main() {
 
-	app := cli.App("post-publication-combiner", "Service listening to content and metadata PostPublication events, and forwards a combined message to the queue")
+	app := cli.App(serviceName, "Service listening to content and metadata PostPublication events, and forwards a combined message to the queue")
 
 	port := app.String(cli.StringOpt{
 		Name:   "port",
@@ -134,6 +136,8 @@ func main() {
 		EnvVar: "WHITELISTED_CONTENT_TYPES",
 	})
 
+	logger.InitDefaultLogger(serviceName)
+
 	app.Action = func() {
 		client := http.Client{
 			Transport: &http.Transport{
@@ -196,12 +200,11 @@ func main() {
 		routeRequests(port, &requestHandler{processor: msgProcessor}, NewCombinerHealthcheck(msgProcessor.MsgProducer, mc.Consumer, &client, *docStoreAPIBaseURL, *publicAnnotationsAPIBaseURL))
 	}
 
-	logrus.SetLevel(logrus.InfoLevel)
-	logrus.Infof("PostPublicationCombiner is starting with args %v", os.Args)
+	logger.Infof("PostPublicationCombiner is starting with args %v", os.Args)
 
 	err := app.Run(os.Args)
 	if err != nil {
-		logrus.Errorf("App could not start, error=[%v]\n", err)
+		logger.Errorf("App could not start, error=[%v]\n", err)
 	}
 }
 
@@ -235,7 +238,7 @@ func routeRequests(port *string, requestHandler *requestHandler, healthService *
 	servicesRouter.HandleFunc("/{id}", requestHandler.postMessage).Methods("POST")
 
 	var monitoringRouter http.Handler = servicesRouter
-	monitoringRouter = httphandlers.TransactionAwareRequestLoggingHandler(logrus.StandardLogger(), monitoringRouter)
+	monitoringRouter = httphandlers.TransactionAwareRequestLoggingHandler(logger.Logger(), monitoringRouter)
 	monitoringRouter = httphandlers.HTTPMetricsHandler(metrics.DefaultRegistry, monitoringRouter)
 
 	r.Handle("/", monitoringRouter)
@@ -247,16 +250,16 @@ func routeRequests(port *string, requestHandler *requestHandler, healthService *
 	wg.Add(1)
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			logrus.Infof("HTTP server closing with message: %v", err)
+			logger.Infof("HTTP server closing with message: %v", err)
 		}
 		wg.Done()
 	}()
 
 	waitForSignal()
-	logrus.Infof("[Shutdown] PostPublicationCombiner is shutting down")
+	logger.Infof("[Shutdown] PostPublicationCombiner is shutting down")
 
 	if err := server.Close(); err != nil {
-		logrus.Errorf("Unable to stop http server: %v", err)
+		logger.Errorf("Unable to stop http server: %v", err)
 	}
 
 	wg.Wait()

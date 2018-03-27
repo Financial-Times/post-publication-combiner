@@ -2,76 +2,76 @@ package processor
 
 import (
 	"errors"
-	"github.com/Financial-Times/post-publication-combiner/model"
-	"github.com/Financial-Times/post-publication-combiner/utils"
-	"github.com/golang/go/src/pkg/fmt"
-	"github.com/stretchr/testify/assert"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/Financial-Times/post-publication-combiner/utils"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetCombinedModelForContent(t *testing.T) {
 
 	tests := []struct {
-		contentModel model.ContentModel
-		retrievedAnn []model.Annotation
+		contentModel ContentModel
+		retrievedAnn []Annotation
 		retrievedErr error
-		expModel     model.CombinedModel
+		expModel     CombinedModel
 		expError     error
 	}{
 		{
-			model.ContentModel{},
-			[]model.Annotation{},
+			ContentModel{},
+			[]Annotation{},
 			nil,
-			model.CombinedModel{},
+			CombinedModel{},
 			errors.New("Content has no UUID provided. Can't deduce annotations for it."),
 		},
 		{
-			model.ContentModel{
-				UUID: "some uuid",
+			ContentModel{
+				"uuid": "some uuid",
 			},
-			[]model.Annotation{},
+			[]Annotation{},
 			errors.New("some error"),
-			model.CombinedModel{},
+			CombinedModel{},
 			errors.New("some error"),
 		},
 		{
-			model.ContentModel{
-				UUID: "some uuid",
+			ContentModel{
+				"uuid": "some uuid",
 			},
-			[]model.Annotation{},
+			[]Annotation{},
 			errors.New("Could not unmarshall annotations for content with uuid"),
-			model.CombinedModel{},
+			CombinedModel{},
 			errors.New("Could not unmarshall annotations for content with uuid"),
 		},
 		{
-			model.ContentModel{
-				UUID:  "622de808-3a7a-49bd-a7fb-2a33f64695be",
-				Title: "Title",
-				Body:  "<body>something relevant here</body>",
-				Identifiers: []model.Identifier{
+			ContentModel{
+				"uuid":  "622de808-3a7a-49bd-a7fb-2a33f64695be",
+				"title": "Title",
+				"body":  "<body>something relevant here</body>",
+				"identifiers": []Identifier{
 					{
 						Authority:       "FTCOM-METHODE_identifier",
 						IdentifierValue: "53217c65-ecef-426e-a3ac-3787e2e62e87",
 					},
 				},
-				PublishedDate:      "2017-04-10T08:03:58.000Z",
-				LastModified:       "2017-04-10T08:09:01.808Z",
-				FirstPublishedDate: "2017-04-10T08:03:58.000Z",
-				MediaType:          "mediaType",
-				MarkedDeleted:      false,
-				Byline:             "FT Reporters",
-				Standfirst:         "A simple line with an article summary",
-				Description:        "descr",
-				MainImage:          "2934de46-5240-4c7d-8576-f12ae12e4a37",
-				PublishReference:   "tid_unique_reference",
+				"publishedDate":      "2017-04-10T08:03:58.000Z",
+				"lastModified":       "2017-04-10T08:09:01.808Z",
+				"firstPublishedDate": "2017-04-10T08:03:58.000Z",
+				"mediaType":          "mediaType",
+				"markedDeleted":      false,
+				"byline":             "FT Reporters",
+				"standfirst":         "A simple line with an article summary",
+				"description":        "descr",
+				"mainImage":          "2934de46-5240-4c7d-8576-f12ae12e4a37",
+				"publishReference":   "tid_unique_reference",
 			},
-			[]model.Annotation{
+			[]Annotation{
 				{
-					Thing: model.Thing{
+					Thing: Thing{
 						ID:        "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
 						PrefLabel: "Barclays",
 						Types: []string{"http://base-url/core/Thing",
@@ -92,32 +92,32 @@ func TestGetCombinedModelForContent(t *testing.T) {
 				},
 			},
 			nil,
-			model.CombinedModel{
+			CombinedModel{
 				UUID: "622de808-3a7a-49bd-a7fb-2a33f64695be",
-				Content: model.ContentModel{
-					UUID:  "622de808-3a7a-49bd-a7fb-2a33f64695be",
-					Title: "Title",
-					Body:  "<body>something relevant here</body>",
-					Identifiers: []model.Identifier{
+				Content: ContentModel{
+					"uuid":  "622de808-3a7a-49bd-a7fb-2a33f64695be",
+					"title": "Title",
+					"body":  "<body>something relevant here</body>",
+					"identifiers": []Identifier{
 						{
 							Authority:       "FTCOM-METHODE_identifier",
 							IdentifierValue: "53217c65-ecef-426e-a3ac-3787e2e62e87",
 						},
 					},
-					PublishedDate:      "2017-04-10T08:03:58.000Z",
-					LastModified:       "2017-04-10T08:09:01.808Z",
-					FirstPublishedDate: "2017-04-10T08:03:58.000Z",
-					MediaType:          "mediaType",
-					MarkedDeleted:      false,
-					Byline:             "FT Reporters",
-					Standfirst:         "A simple line with an article summary",
-					Description:        "descr",
-					MainImage:          "2934de46-5240-4c7d-8576-f12ae12e4a37",
-					PublishReference:   "tid_unique_reference",
+					"publishedDate":      "2017-04-10T08:03:58.000Z",
+					"lastModified":       "2017-04-10T08:09:01.808Z",
+					"firstPublishedDate": "2017-04-10T08:03:58.000Z",
+					"mediaType":          "mediaType",
+					"markedDeleted":      false,
+					"byline":             "FT Reporters",
+					"standfirst":         "A simple line with an article summary",
+					"description":        "descr",
+					"mainImage":          "2934de46-5240-4c7d-8576-f12ae12e4a37",
+					"publishReference":   "tid_unique_reference",
 				},
-				Metadata: []model.Annotation{
+				Metadata: []Annotation{
 					{
-						Thing: model.Thing{
+						Thing: Thing{
 							ID:        "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
 							PrefLabel: "Barclays",
 							Types: []string{"http://base-url/core/Thing",
@@ -137,6 +137,7 @@ func TestGetCombinedModelForContent(t *testing.T) {
 						},
 					},
 				},
+				LastModified: "2017-04-10T08:09:01.808Z",
 			},
 			nil,
 		},
@@ -147,7 +148,7 @@ func TestGetCombinedModelForContent(t *testing.T) {
 			MetadataRetriever: DummyMetadataRetriever{testCase.retrievedAnn, testCase.retrievedErr},
 		}
 		m, err := combiner.GetCombinedModelForContent(testCase.contentModel, "some_platform_version")
-		assert.Equal(t, testCase.expModel, m,
+		assert.True(t, reflect.DeepEqual(testCase.expModel, m),
 			fmt.Sprintf("Expected model: %v was not equal with the received one: %v \n", testCase.expModel, m))
 		if testCase.expError == nil {
 			assert.Equal(t, nil, err)
@@ -160,60 +161,60 @@ func TestGetCombinedModelForContent(t *testing.T) {
 func TestGetCombinedModelForAnnotations(t *testing.T) {
 
 	tests := []struct {
-		metadata            model.Annotations
-		retrievedContent    model.ContentModel
+		metadata            Annotations
+		retrievedContent    ContentModel
 		retreivedContentErr error
-		retrievedAnn        []model.Annotation
+		retrievedAnn        []Annotation
 		retreivedAnnErr     error
-		expModel            model.CombinedModel
+		expModel            CombinedModel
 		expError            error
 	}{
 		{
-			model.Annotations{},
-			model.ContentModel{},
+			Annotations{},
+			ContentModel{},
 			nil,
-			[]model.Annotation{},
+			[]Annotation{},
 			nil,
-			model.CombinedModel{},
+			CombinedModel{},
 			errors.New("Annotations have no UUID referenced. Can't deduce content for it."),
 		},
 		{
-			model.Annotations{UUID: "some_uuid"},
-			model.ContentModel{},
+			Annotations{UUID: "some_uuid"},
+			ContentModel{},
 			errors.New("some content error"),
-			[]model.Annotation{},
+			[]Annotation{},
 			nil,
-			model.CombinedModel{},
+			CombinedModel{},
 			errors.New("some content error"),
 		},
 		{
-			model.Annotations{UUID: "some_uuid"},
-			model.ContentModel{},
+			Annotations{UUID: "some_uuid"},
+			ContentModel{},
 			errors.New("some content error"),
-			[]model.Annotation{},
+			[]Annotation{},
 			errors.New("some metadata error"),
-			model.CombinedModel{},
+			CombinedModel{},
 			errors.New("some content error"),
 		},
 		{
-			model.Annotations{UUID: "some_uuid"},
-			model.ContentModel{},
+			Annotations{UUID: "some_uuid"},
+			ContentModel{},
 			nil,
-			[]model.Annotation{},
+			[]Annotation{},
 			errors.New("some metadata error"),
-			model.CombinedModel{},
+			CombinedModel{},
 			errors.New("some metadata error"),
 		},
 		{
-			model.Annotations{UUID: "some_uuid"},
-			model.ContentModel{
-				UUID:  "some_uuid",
-				Title: "title",
-				Body:  "body",
+			Annotations{UUID: "some_uuid"},
+			ContentModel{
+				"uuid":  "some_uuid",
+				"title": "title",
+				"body":  "body",
 			},
 			nil,
-			[]model.Annotation{
-				{model.Thing{
+			[]Annotation{
+				{Thing{
 					ID:        "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
 					PrefLabel: "Barclays",
 					Types: []string{"http://base-url/core/Thing",
@@ -229,15 +230,15 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 				},
 			},
 			nil,
-			model.CombinedModel{
+			CombinedModel{
 				UUID: "some_uuid",
-				Content: model.ContentModel{
-					UUID:  "some_uuid",
-					Title: "title",
-					Body:  "body",
+				Content: ContentModel{
+					"uuid":  "some_uuid",
+					"title": "title",
+					"body":  "body",
 				},
-				Metadata: []model.Annotation{
-					{model.Thing{
+				Metadata: []Annotation{
+					{Thing{
 						ID:        "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
 						PrefLabel: "Barclays",
 						Types: []string{"http://base-url/core/Thing",
@@ -256,13 +257,13 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 			nil,
 		},
 		{
-			model.Annotations{UUID: "some_uuid"},
-			model.ContentModel{
-				UUID:  "some_uuid",
-				Title: "title",
-				Body:  "body",
-				Type:  "Video",
-				Identifiers: []model.Identifier{
+			Annotations{UUID: "some_uuid"},
+			ContentModel{
+				"uuid":  "some_uuid",
+				"title": "title",
+				"body":  "body",
+				"type":  "Video",
+				"identifiers": []Identifier{
 					{
 						Authority:       "http://api.ft.com/system/NEXT-VIDEO-EDITOR",
 						IdentifierValue: "some_uuid",
@@ -270,8 +271,8 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 				},
 			},
 			nil,
-			[]model.Annotation{
-				{model.Thing{
+			[]Annotation{
+				{Thing{
 					ID:        "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
 					PrefLabel: "Barclays",
 					Types: []string{"http://base-url/core/Thing",
@@ -287,22 +288,22 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 				},
 			},
 			nil,
-			model.CombinedModel{
+			CombinedModel{
 				UUID: "some_uuid",
-				Content: model.ContentModel{
-					UUID:  "some_uuid",
-					Title: "title",
-					Body:  "body",
-					Type:  "Video",
-					Identifiers: []model.Identifier{
+				Content: ContentModel{
+					"uuid":  "some_uuid",
+					"title": "title",
+					"body":  "body",
+					"type":  "Video",
+					"identifiers": []Identifier{
 						{
 							Authority:       "http://api.ft.com/system/NEXT-VIDEO-EDITOR",
 							IdentifierValue: "some_uuid",
 						},
 					},
 				},
-				Metadata: []model.Annotation{
-					{model.Thing{
+				Metadata: []Annotation{
+					{Thing{
 						ID:        "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
 						PrefLabel: "Barclays",
 						Types: []string{"http://base-url/core/Thing",
@@ -345,7 +346,7 @@ func TestGetAnnotations(t *testing.T) {
 		uuid           string
 		address        utils.ApiURL
 		dc             utils.Client
-		expAnnotations []model.Annotation
+		expAnnotations []Annotation
 		expError       error
 	}{
 		{
@@ -354,7 +355,7 @@ func TestGetAnnotations(t *testing.T) {
 			dummyClient{
 				statusCode: http.StatusNotFound,
 			},
-			[]model.Annotation(nil), //empty value for a slice
+			[]Annotation(nil), //empty value for a slice
 			nil,
 		},
 		{
@@ -363,7 +364,7 @@ func TestGetAnnotations(t *testing.T) {
 			dummyClient{
 				err: errors.New("some error"),
 			},
-			[]model.Annotation(nil), //empty value for a slice
+			[]Annotation(nil), //empty value for a slice
 			errors.New("some error"),
 		},
 		{
@@ -373,7 +374,7 @@ func TestGetAnnotations(t *testing.T) {
 				statusCode: http.StatusOK,
 				body:       "text that can't be unmarshalled",
 			},
-			[]model.Annotation(nil),
+			[]Annotation(nil),
 			errors.New("Could not unmarshall annotations for content with uuid=some_uuid"),
 		},
 		{
@@ -383,9 +384,9 @@ func TestGetAnnotations(t *testing.T) {
 				statusCode: http.StatusOK,
 				body:       `[{"predicate":"http://base-url/about","id":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995","apiUrl":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/organisation/Organisation","http://base-url/company/Company","http://base-url/company/PublicCompany"],"leiCode":"leicode_id_1","prefLabel":"Barclays","factsetID":"factset-id1","tmeIDs":["tme_id1"],"uuids":["80bec524-8c75-4d0f-92fa-abce3962d995","factset-generated-uuid"],"platformVersion":"v1"},{"predicate":"http://base-url/isClassifiedBy","id":"http://base-url/271ee5f7-d808-497d-bed3-1b961953dedc","apiUrl":"http://base-url/271ee5f7-d808-497d-bed3-1b961953dedc","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/classification/Classification","http://base-url/Section"],"prefLabel":"Financials","tmeIDs":["tme_id_2"],"uuids":["271ee5f7-d808-497d-bed3-1b961953dedc"],"platformVersion":"v1"},{"predicate":"http://base-url/majorMentions","id":"http://base-url/a19d07d5-dc28-4c33-8745-a96f193df5cd","apiUrl":"http://base-url/a19d07d5-dc28-4c33-8745-a96f193df5cd","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/person/Person"],"prefLabel":"Jes Staley","tmeIDs":["tme_id_3"],"uuids":["a19d07d5-dc28-4c33-8745-a96f193df5cd"],"platformVersion":"v1"}]`,
 			},
-			[]model.Annotation{
+			[]Annotation{
 				{
-					Thing: model.Thing{
+					Thing: Thing{
 						ID:        "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
 						PrefLabel: "Barclays",
 						Types: []string{"http://base-url/core/Thing",
@@ -405,7 +406,7 @@ func TestGetAnnotations(t *testing.T) {
 					},
 				},
 				{
-					Thing: model.Thing{
+					Thing: Thing{
 						ID:        "http://base-url/271ee5f7-d808-497d-bed3-1b961953dedc",
 						PrefLabel: "Financials",
 						Types: []string{"http://base-url/core/Thing",
@@ -422,7 +423,7 @@ func TestGetAnnotations(t *testing.T) {
 					},
 				},
 				{
-					Thing: model.Thing{
+					Thing: Thing{
 						ID:        "http://base-url/a19d07d5-dc28-4c33-8745-a96f193df5cd",
 						PrefLabel: "Jes Staley",
 						Types: []string{"http://base-url/core/Thing",
@@ -460,7 +461,7 @@ func TestGetContent(t *testing.T) {
 		uuid       string
 		address    utils.ApiURL
 		dc         utils.Client
-		expContent model.ContentModel
+		expContent ContentModel
 		expError   error
 	}{
 		{
@@ -469,7 +470,7 @@ func TestGetContent(t *testing.T) {
 			dummyClient{
 				statusCode: http.StatusNotFound,
 			},
-			model.ContentModel{},
+			nil,
 			nil,
 		},
 		{
@@ -478,7 +479,7 @@ func TestGetContent(t *testing.T) {
 			dummyClient{
 				err: errors.New("some error"),
 			},
-			model.ContentModel{},
+			nil,
 			errors.New("some error"),
 		},
 		{
@@ -488,7 +489,7 @@ func TestGetContent(t *testing.T) {
 				statusCode: http.StatusOK,
 				body:       "text that can't be unmarshalled",
 			},
-			model.ContentModel{},
+			nil,
 			errors.New("Could not unmarshall content with uuid=some_uuid"),
 		},
 		{
@@ -498,26 +499,52 @@ func TestGetContent(t *testing.T) {
 				statusCode: http.StatusOK,
 				body:       `{"uuid":"622de808-3a7a-49bd-a7fb-2a33f64695be","title":"Title","alternativeTitles":{"promotionalTitle":"Alternative title"},"type":null,"byline":"FT Reporters","brands":[{"id":"http://api.ft.com/things/40f636a3-5507-4311-9629-95376007cb7b"}],"identifiers":[{"authority":"FTCOM-METHODE_identifier","identifierValue":"53217c65-ecef-426e-a3ac-3787e2e62e87"}],"publishedDate":"2017-04-10T08:03:58.000Z","standfirst":"A simple line with an article summary","body":"<body>something relevant here<\/body>","description":null,"mediaType":null,"pixelWidth":null,"pixelHeight":null,"internalBinaryUrl":null,"externalBinaryUrl":null,"members":null,"mainImage":"2934de46-5240-4c7d-8576-f12ae12e4a37","standout":{"editorsChoice":false,"exclusive":false,"scoop":false},"comments":{"enabled":true},"copyright":null,"webUrl":null,"publishReference":"tid_unique_reference","lastModified":"2017-04-10T08:09:01.808Z","canBeSyndicated":"yes","firstPublishedDate":"2017-04-10T08:03:58.000Z","accessLevel":"subscribed","canBeDistributed":"yes"}`,
 			},
-			model.ContentModel{
-				UUID:  "622de808-3a7a-49bd-a7fb-2a33f64695be",
-				Title: "Title",
-				Body:  "<body>something relevant here</body>",
-				Identifiers: []model.Identifier{
-					{
-						Authority:       "FTCOM-METHODE_identifier",
-						IdentifierValue: "53217c65-ecef-426e-a3ac-3787e2e62e87",
+			ContentModel{
+				"uuid":  "622de808-3a7a-49bd-a7fb-2a33f64695be",
+				"title": "Title",
+				"alternativeTitles": map[string]interface{}{
+					"promotionalTitle": "Alternative title",
+				},
+				"type":   nil,
+				"byline": "FT Reporters",
+				"brands": []interface{}{
+					map[string]interface{}{
+						"id": "http://api.ft.com/things/40f636a3-5507-4311-9629-95376007cb7b",
 					},
 				},
-				PublishedDate:      "2017-04-10T08:03:58.000Z",
-				LastModified:       "2017-04-10T08:09:01.808Z",
-				FirstPublishedDate: "2017-04-10T08:03:58.000Z",
-				MediaType:          "",
-				MarkedDeleted:      false,
-				Byline:             "FT Reporters",
-				Standfirst:         "A simple line with an article summary",
-				Description:        "",
-				MainImage:          "2934de46-5240-4c7d-8576-f12ae12e4a37",
-				PublishReference:   "tid_unique_reference",
+				"identifiers": []interface{}{
+					map[string]interface{}{
+						"authority":       "FTCOM-METHODE_identifier",
+						"identifierValue": "53217c65-ecef-426e-a3ac-3787e2e62e87",
+					},
+				},
+				"publishedDate":     "2017-04-10T08:03:58.000Z",
+				"standfirst":        "A simple line with an article summary",
+				"body":              "<body>something relevant here</body>",
+				"description":       nil,
+				"mediaType":         nil,
+				"pixelWidth":        nil,
+				"pixelHeight":       nil,
+				"internalBinaryUrl": nil,
+				"externalBinaryUrl": nil,
+				"members":           nil,
+				"mainImage":         "2934de46-5240-4c7d-8576-f12ae12e4a37",
+				"standout": map[string]interface{}{
+					"editorsChoice": false,
+					"exclusive":     false,
+					"scoop":         false,
+				},
+				"comments": map[string]interface{}{
+					"enabled": true,
+				},
+				"copyright":          nil,
+				"webUrl":             nil,
+				"publishReference":   "tid_unique_reference",
+				"lastModified":       "2017-04-10T08:09:01.808Z",
+				"canBeSyndicated":    "yes",
+				"firstPublishedDate": "2017-04-10T08:03:58.000Z",
+				"accessLevel":        "subscribed",
+				"canBeDistributed":   "yes",
 			},
 			nil,
 		},
@@ -531,7 +558,12 @@ func TestGetContent(t *testing.T) {
 		if testCase.expError == nil {
 			assert.Equal(t, nil, err)
 		} else {
-			assert.Contains(t, err.Error(), testCase.expError.Error())
+			assert.True(t,
+				strings.Contains(
+					err.Error(),
+					testCase.expError.Error()),
+				fmt.Sprintf("'%s' does not contains '%s'", err.Error(), testCase.expError.Error()),
+			)
 		}
 	}
 }
@@ -553,19 +585,19 @@ func (c dummyClient) Do(req *http.Request) (*http.Response, error) {
 }
 
 type DummyContentRetriever struct {
-	c   model.ContentModel
+	c   ContentModel
 	err error
 }
 
-func (r DummyContentRetriever) getContent(uuid string) (model.ContentModel, error) {
+func (r DummyContentRetriever) getContent(uuid string) (ContentModel, error) {
 	return r.c, r.err
 }
 
 type DummyMetadataRetriever struct {
-	ann []model.Annotation
+	ann []Annotation
 	err error
 }
 
-func (r DummyMetadataRetriever) getAnnotations(uuid string, platformVersion string) ([]model.Annotation, error) {
+func (r DummyMetadataRetriever) getAnnotations(uuid string, platformVersion string) ([]Annotation, error) {
 	return r.ann, r.err
 }

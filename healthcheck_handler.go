@@ -4,10 +4,10 @@ import (
 	"net/http"
 
 	health "github.com/Financial-Times/go-fthealth/v1_1"
+	logger "github.com/Financial-Times/go-logger"
 	"github.com/Financial-Times/message-queue-go-producer/producer"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"github.com/Financial-Times/service-status-go/gtg"
-	log "github.com/Sirupsen/logrus"
 
 	"github.com/Financial-Times/post-publication-combiner/utils"
 )
@@ -111,7 +111,7 @@ func gtgCheck(handler func() (string, error)) gtg.Status {
 func (h *HealthcheckHandler) checkIfDocumentStoreIsReachable() (string, error) {
 	_, _, err := utils.ExecuteSimpleHTTPRequest(h.docStoreAPIBaseURL+GTGEndpoint, h.httpClient)
 	if err != nil {
-		log.Errorf("Healthcheck: %v", err.Error())
+		logger.Errorf("Healthcheck: %v", err.Error())
 		return "", err
 	}
 	return ResponseOK, nil
@@ -120,7 +120,7 @@ func (h *HealthcheckHandler) checkIfDocumentStoreIsReachable() (string, error) {
 func (h *HealthcheckHandler) checkIfPublicAnnotationsAPIIsReachable() (string, error) {
 	_, _, err := utils.ExecuteSimpleHTTPRequest(h.publicAnnotationsAPIBaseURL+GTGEndpoint, h.httpClient)
 	if err != nil {
-		log.Errorf("Healthcheck: %v", err.Error())
+		logger.Errorf("Healthcheck: %v", err.Error())
 		return "", err
 	}
 	return ResponseOK, nil

@@ -2,7 +2,7 @@ package utils
 
 import (
 	"fmt"
-	"github.com/Sirupsen/logrus"
+	"github.com/Financial-Times/go-logger"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -63,11 +63,11 @@ func cleanUp(resp *http.Response) {
 
 	_, err := io.Copy(ioutil.Discard, resp.Body)
 	if err != nil {
-		logrus.Warningf("[%v]", err)
+		logger.Warningf("[%v]", err)
 	}
 
 	err = resp.Body.Close()
 	if err != nil {
-		logrus.Warningf("[%v]", err)
+		logger.Warningf("[%v]", err)
 	}
 }
