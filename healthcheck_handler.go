@@ -1,8 +1,6 @@
 package main
 
 import (
-	"net/http"
-
 	health "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/go-logger"
 	"github.com/Financial-Times/message-queue-go-producer/producer"
@@ -25,7 +23,7 @@ type HealthcheckHandler struct {
 	publicAnnotationsAPIBaseURL string
 }
 
-func NewCombinerHealthcheck(p producer.MessageProducer, c consumer.MessageConsumer, client *http.Client, docStoreAPIURL string, publicAnnotationsAPIURL string) *HealthcheckHandler {
+func NewCombinerHealthcheck(p producer.MessageProducer, c consumer.MessageConsumer, client utils.Client, docStoreAPIURL string, publicAnnotationsAPIURL string) *HealthcheckHandler {
 	return &HealthcheckHandler{
 		httpClient:                  client,
 		producer:                    p,
