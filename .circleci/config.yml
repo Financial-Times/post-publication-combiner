@@ -64,8 +64,8 @@ jobs:
           command: |
             curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
       - run:
-        name: Download vendored dependencies
-        command: dep ensure -v -vendor-only
+          name: Download vendored dependencies
+          command: dep ensure -v -vendor-only
       - run:
           name: Go Build
           command: go build -v
