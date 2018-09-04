@@ -1,7 +1,7 @@
 version: 2
 jobs:
   build:
-    working_directory: /go/src/github.com/Financial-Times/{{ cookiecutter.repo_name }}
+    working_directory: /go/src/github.com/Financial-Times/post-publication-combiner
     docker:
     - image: circleci/golang:1.10
       environment:
