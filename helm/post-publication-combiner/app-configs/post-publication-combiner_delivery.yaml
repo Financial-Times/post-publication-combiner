@@ -15,3 +15,4 @@ env:
   DOCUMENT_STORE_API_ENDPOINT: /content/{uuid}
   PUBLIC_ANNOTATIONS_API_BASE_URL: http://public-annotations-api:8080
   PUBLIC_ANNOTATIONS_API_ENDPOINT: /content/{uuid}/annotations
+  WHITELISTED_CONTENT_TYPES: "Article,Video,MediaResource,,DynamicContent"
