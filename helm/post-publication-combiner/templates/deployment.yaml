@@ -57,9 +57,11 @@ spec:
           value: "{{ .Values.env.PUBLIC_ANNOTATIONS_API_BASE_URL }}"
         - name: PUBLIC_ANNOTATIONS_API_ENDPOINT 
           value: "{{ .Values.env.PUBLIC_ANNOTATIONS_API_ENDPOINT }}"
-        - name: GRAPHITE_PREFIX 
+        - name: WHITELISTED_CONTENT_TYPES
+          value: "{{ .Values.env.WHITELISTED_CONTENT_TYPES }}"
+        - name: GRAPHITE_PREFIX
           value: "coco.services.k8s.{{ .Values.service.name }}"
-        - name: GRAPHITE_ADDRESS 
+        - name: GRAPHITE_ADDRESS
           valueFrom:
             configMapKeyRef:
               name: global-config
