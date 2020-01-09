@@ -5,7 +5,7 @@ service:
   name: "" # The name of the service, should be defined in the specific app-configs folder.
   hasHealthcheck: "true"
   isResilient: "false"
-replicaCount: 2
+replicaCount: 1
 image:
   repository: coco/post-publication-combiner
   pullPolicy: IfNotPresent

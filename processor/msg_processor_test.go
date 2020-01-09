@@ -9,7 +9,7 @@ import (
 
 	testLogger "github.com/Financial-Times/go-logger/test"
 	"github.com/Financial-Times/message-queue-go-producer/producer"
-	"github.com/Financial-Times/message-queue-gonsumer/consumer"
+	consumer "github.com/Financial-Times/message-queue-gonsumer"
 
 	"github.com/stretchr/testify/assert"
 )

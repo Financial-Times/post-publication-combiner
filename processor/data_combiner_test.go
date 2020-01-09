@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Financial-Times/post-publication-combiner/utils"
+	"github.com/Financial-Times/post-publication-combiner/v2/utils"
 	"github.com/stretchr/testify/assert"
 )
 

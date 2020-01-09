@@ -4,10 +4,10 @@ import (
 	health "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/go-logger"
 	"github.com/Financial-Times/message-queue-go-producer/producer"
-	"github.com/Financial-Times/message-queue-gonsumer/consumer"
+	consumer "github.com/Financial-Times/message-queue-gonsumer"
 	"github.com/Financial-Times/service-status-go/gtg"
 
-	"github.com/Financial-Times/post-publication-combiner/utils"
+	"github.com/Financial-Times/post-publication-combiner/v2/utils"
 )
 
 const (
@@ -37,7 +37,7 @@ func checkKafkaProxyProducerConnectivity(h *HealthcheckHandler) health.Check {
 	return health.Check{
 		BusinessImpact:   "Can't write CombinedPostPublicationEvents and ForcedCombinedPostPublicationEvents messages to queue. Indexing for search won't work.",
 		Name:             "Check connectivity to the kafka-proxy",
-		PanicGuide:       "https://dewey.in.ft.com/runbooks/post-publication-combiner",
+		PanicGuide:       "https://runbooks.in.ft.com/post-publication-combiner",
 		Severity:         2,
 		TechnicalSummary: "CombinedPostPublicationEvents and ForcedCombinedPostPublicationEvents messages can't be forwarded to the queue. Check if kafka-proxy is reachable.",
 		Checker:          h.producer.ConnectivityCheck,
@@ -48,7 +48,7 @@ func checkKafkaProxyConsumerConnectivity(h *HealthcheckHandler) health.Check {
 	return health.Check{
 		BusinessImpact:   "Can't process PostPublicationEvents and PostMetadataPublicationEvents messages. Indexing for search won't work.",
 		Name:             "Check connectivity to the kafka-proxy",
-		PanicGuide:       "https://dewey.in.ft.com/runbooks/post-publication-combiner",
+		PanicGuide:       "https://runbooks.in.ft.com/post-publication-combiner",
 		Severity:         2,
 		TechnicalSummary: "PostPublicationEvents and PostMetadataPublicationEvents messages are not received from the queue. Check if kafka-proxy is reachable.",
 		Checker:          h.consumer.ConnectivityCheck,
@@ -59,7 +59,7 @@ func checkDocumentStoreAPIHealthcheck(h *HealthcheckHandler) health.Check {
 	return health.Check{
 		BusinessImpact:   "CombinedPostPublication messages can't be constructed. Indexing for content search won't work.",
 		Name:             "Check connectivity to document-store-api",
-		PanicGuide:       "https://dewey.in.ft.com/runbooks/document-store-api",
+		PanicGuide:       "https://runbooks.in.ft.com/document-store-api",
 		Severity:         2,
 		TechnicalSummary: "Document-store-api is not reachable. Messages can't be successfully constructed, neither forwarded.",
 		Checker:          h.checkIfDocumentStoreIsReachable,
@@ -70,7 +70,7 @@ func checkPublicAnnotationsAPIHealthcheck(h *HealthcheckHandler) health.Check {
 	return health.Check{
 		BusinessImpact:   "CombinedPostPublication messages can't be constructed. Indexing for content search won't work.",
 		Name:             "Check connectivity to public-annotations-api",
-		PanicGuide:       "https://dewey.in.ft.com/runbooks/annotationsapi",
+		PanicGuide:       "https://runbooks.in.ft.com/annotationsapi",
 		Severity:         2,
 		TechnicalSummary: "Public-annotations-api is not reachable. Messages can't be successfully constructed, neither forwarded.",
 		Checker:          h.checkIfPublicAnnotationsAPIIsReachable,

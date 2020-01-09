@@ -10,18 +10,19 @@ import (
 	"time"
 
 	health "github.com/Financial-Times/go-fthealth/v1_1"
-	"github.com/Financial-Times/go-logger"
+	loggerv1 "github.com/Financial-Times/go-logger"
 	"github.com/Financial-Times/http-handlers-go/httphandlers"
-	"github.com/Financial-Times/message-queue-gonsumer/consumer"
+	consumer "github.com/Financial-Times/message-queue-gonsumer"
 	status "github.com/Financial-Times/service-status-go/httphandlers"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/jawher/mow.cli"
+	cli "github.com/jawher/mow.cli"
 	"github.com/rcrowley/go-metrics"
 
+	loggerv2 "github.com/Financial-Times/go-logger/v2"
 	"github.com/Financial-Times/message-queue-go-producer/producer"
-	"github.com/Financial-Times/post-publication-combiner/processor"
-	"github.com/Financial-Times/post-publication-combiner/utils"
+	"github.com/Financial-Times/post-publication-combiner/v2/processor"
+	"github.com/Financial-Times/post-publication-combiner/v2/utils"
 )
 
 const serviceName = "post-publication-combiner"
@@ -124,7 +125,9 @@ func main() {
 		EnvVar: "WHITELISTED_CONTENT_TYPES",
 	})
 
-	logger.InitDefaultLogger(serviceName)
+	loggerv1.InitDefaultLogger(serviceName)
+	logConf := loggerv2.KeyNamesConfig{KeyTime: "@time"}
+	logger := loggerv2.NewUPPLogger(serviceName, "INFO", logConf)
 
 	app.Action = func() {
 		client := http.Client{
@@ -150,7 +153,7 @@ func main() {
 			Topic: *contentTopic,
 			Queue: *kafkaProxyRoutingHeader,
 		}
-		cc := processor.NewKafkaQConsumer(cConf, messagesCh, &client)
+		cc := processor.NewKafkaQConsumer(cConf, messagesCh, &client, logger)
 		go cc.Consumer.Start()
 		defer cc.Consumer.Stop()
 
@@ -161,7 +164,7 @@ func main() {
 			Topic: *metadataTopic,
 			Queue: *kafkaProxyRoutingHeader,
 		}
-		mc := processor.NewKafkaQConsumer(mConf, messagesCh, &client)
+		mc := processor.NewKafkaQConsumer(mConf, messagesCh, &client, logger)
 		go mc.Consumer.Start()
 		defer mc.Consumer.Stop()
 
@@ -197,11 +200,11 @@ func main() {
 		routeRequests(port, &requestHandler{requestProcessor: requestProcessor}, NewCombinerHealthcheck(msgProducer, mc.Consumer, &client, *docStoreAPIBaseURL, *publicAnnotationsAPIBaseURL))
 	}
 
-	logger.Infof("PostPublicationCombiner is starting with args %v", os.Args)
+	loggerv1.Infof("PostPublicationCombiner is starting with args %v", os.Args)
 
 	err := app.Run(os.Args)
 	if err != nil {
-		logger.WithError(err).Error("App could not start")
+		loggerv1.WithError(err).Error("App could not start")
 	}
 }
 
@@ -235,7 +238,7 @@ func routeRequests(port *string, requestHandler *requestHandler, healthService *
 	servicesRouter.HandleFunc("/{id}", requestHandler.postMessage).Methods("POST")
 
 	var monitoringRouter http.Handler = servicesRouter
-	monitoringRouter = httphandlers.TransactionAwareRequestLoggingHandler(logger.Logger(), monitoringRouter)
+	monitoringRouter = httphandlers.TransactionAwareRequestLoggingHandler(loggerv1.Logger(), monitoringRouter)
 	monitoringRouter = httphandlers.HTTPMetricsHandler(metrics.DefaultRegistry, monitoringRouter)
 
 	r.Handle("/", monitoringRouter)
@@ -247,24 +250,23 @@ func routeRequests(port *string, requestHandler *requestHandler, healthService *
 	wg.Add(1)
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			logger.Infof("HTTP server closing with message: %v", err)
+			loggerv1.Infof("HTTP server closing with message: %v", err)
 		}
 		wg.Done()
 	}()
 
 	waitForSignal()
-	logger.Infof("[Shutdown] PostPublicationCombiner is shutting down")
+	loggerv1.Infof("[Shutdown] PostPublicationCombiner is shutting down")
 
 	if err := server.Close(); err != nil {
-		logger.WithError(err).Error("Unable to stop http server")
+		loggerv1.WithError(err).Error("Unable to stop http server")
 	}
 
 	wg.Wait()
-
 }
 
 func waitForSignal() {
-	ch := make(chan os.Signal)
+	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	<-ch
 }

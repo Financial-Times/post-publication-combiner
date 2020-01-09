@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Financial-Times/post-publication-combiner/utils"
 	"net/http"
+
+	"github.com/Financial-Times/post-publication-combiner/v2/utils"
 )
 
 type DataCombinerI interface {

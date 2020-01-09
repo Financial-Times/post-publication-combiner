@@ -18,12 +18,10 @@ This service depends on the following services:
 
 ## Installation
 
-In order to install, execute the following steps:
+Download the source code, dependencies and test dependencies:
 
-        go get -u github.com/Financial-Times/post-publication-combiner
+        go get github.com/Financial-Times/post-publication-combiner
         cd $GOPATH/src/github.com/Financial-Times/post-publication-combiner
-        dep ensure -vendor-only
-        go test ./...
         go install
 
 ## Running locally
@@ -35,9 +33,7 @@ In order to install, execute the following steps:
 
 1. Run the binary (using the `help` flag to see the available optional arguments):
 
-        $GOPATH/bin/post-publication-combiner
-
-Please check --help for more details.
+        $GOPATH/bin/post-publication-combiner [--help]
 
 Test:
     You can verify the service's behavior by checking the consumed and the generated kafka messages.
@@ -45,7 +41,7 @@ Test:
 
 ## Build and deployment
 
-* Built by Docker Hub (from master or from github tags): [coco/post-publication-combiner](https://hub.docker.com/r/coco/post-publication-combiner/)
+* Built by Docker Hub (from master or from Github tags): [coco/post-publication-combiner](https://hub.docker.com/r/coco/post-publication-combiner/)
 * CI provided by CircleCI: [post-publication-combiner](https://circleci.com/gh/Financial-Times/post-publication-combiner)
 
 ## Service/Utility endpoints
