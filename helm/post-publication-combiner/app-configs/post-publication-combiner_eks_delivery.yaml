@@ -2,7 +2,6 @@
 replicaCount: 2
 service:
   name: post-publication-combiner
-eksCluster: true
 env:
   PORT: 8080
   KAFKA_CONTENT_TOPIC_NAME: PostPublicationEvents
