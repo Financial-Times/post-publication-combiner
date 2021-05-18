@@ -44,18 +44,18 @@ func NewDataCombiner(docStoreApiUrl utils.ApiURL, annApiUrl utils.ApiURL, c util
 }
 
 func (dc DataCombiner) GetCombinedModelForContent(content ContentModel) (CombinedModel, error) {
-
-	if content.getUUID() == "" {
+	uuid := content.getUUID()
+	if uuid == "" {
 		return CombinedModel{}, errors.New("content has no UUID provided. Can't deduce annotations for it.")
 	}
 
-	ann, err := dc.MetadataRetriever.getAnnotations(content.getUUID())
+	ann, err := dc.MetadataRetriever.getAnnotations(uuid)
 	if err != nil {
 		return CombinedModel{}, err
 	}
 
 	return CombinedModel{
-		UUID:         content.getUUID(),
+		UUID:         uuid,
 		Content:      content,
 		Metadata:     ann,
 		LastModified: content.getLastModified(),

@@ -13,9 +13,9 @@ type CombinedModel struct {
 	Content  ContentModel `json:"content"`
 	Metadata []Annotation `json:"metadata"`
 
-	ContentURI    string `json:"contentUri"`
-	LastModified  string `json:"lastModified"`
-	MarkedDeleted string `json:"markedDeleted"`
+	ContentURI   string `json:"contentUri"`
+	LastModified string `json:"lastModified"`
+	Deleted      bool   `json:"deleted"`
 }
 
 type AnnotationsMessage struct {
@@ -71,6 +71,11 @@ func (cm ContentModel) getIdentifiers() []Identifier {
 type Identifier struct {
 	Authority       string `json:"authority"`
 	IdentifierValue string `json:"identifierValue"`
+}
+
+func (cm ContentModel) isDeleted() bool {
+	val, _ := cm["deleted"].(bool)
+	return val
 }
 
 func (am AnnotationsMessage) getContentUUID() string {

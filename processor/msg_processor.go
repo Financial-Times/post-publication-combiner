@@ -9,8 +9,6 @@ import (
 	"github.com/Financial-Times/message-queue-go-producer/producer"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"github.com/dchest/uniuri"
-
-	uuidlib "github.com/satori/go.uuid"
 )
 
 var (
@@ -57,7 +55,6 @@ func (p *MsgProcessor) ProcessMessages() {
 }
 
 func (p *MsgProcessor) processContentMsg(m consumer.Message) {
-
 	tid := extractTID(m.Headers)
 	m.Headers["X-Request-Id"] = tid
 
@@ -75,29 +72,20 @@ func (p *MsgProcessor) processContentMsg(m consumer.Message) {
 		return
 	}
 
-	var combinedMSG CombinedModel
-	// delete messages have empty payload
-	if cm.ContentModel == nil || len(cm.ContentModel) == 0 {
+	uuid := cm.ContentModel.getUUID()
+	if uuid == "" {
+		logger.WithTransactionID(tid).Errorf("UUID not found after message marshalling, skipping message with contentUri=%v.", cm.ContentURI)
+		return
+	}
 
-		//handle delete events
-		sl := strings.Split(cm.ContentURI, "/")
-		uuid := sl[len(sl)-1]
-		if _, err := uuidlib.FromString(uuid); err != nil || uuid == "" {
-			logger.WithTransactionID(tid).WithError(err).Errorf("UUID couldn't be determined, skipping message with TID=%v.", tid)
-			return
-		}
+	var combinedMSG CombinedModel
+
+	if cm.ContentModel.isDeleted() {
 		combinedMSG.UUID = uuid
 		combinedMSG.ContentURI = cm.ContentURI
 		combinedMSG.LastModified = cm.LastModified
-		combinedMSG.MarkedDeleted = "true"
+		combinedMSG.Deleted = true
 	} else {
-
-		//combine data
-		if cm.ContentModel.getUUID() == "" {
-			logger.WithTransactionID(tid).Errorf("UUID not found after message marshalling, skipping message with contentUri=%v.", cm.ContentURI)
-			return
-		}
-
 		var err error
 		combinedMSG, err = p.DataCombiner.GetCombinedModelForContent(cm.ContentModel)
 		if err != nil {
@@ -106,7 +94,6 @@ func (p *MsgProcessor) processContentMsg(m consumer.Message) {
 		}
 
 		combinedMSG.ContentURI = cm.ContentURI
-		combinedMSG.MarkedDeleted = "false"
 	}
 
 	//forward data
