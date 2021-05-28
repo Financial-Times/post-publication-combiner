@@ -20,7 +20,7 @@ The service then constructs a `CombinedPostPublicationEvents` message with the r
   "uuid": "some_uuid", // content uuid
   "contentUri": "",
   "lastModified": "",
-  "markedDeleted": "",
+  "deleted": false,
   "content": {}, // data returned from document-store-api
   "metadata": [] // data returned from public-annotations-api
 }
