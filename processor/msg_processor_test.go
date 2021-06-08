@@ -15,8 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestProcessContentMsg_Unmarshall_Error(t *testing.T) {
-
+func TestProcessContentMsg_Unmarshal_Error(t *testing.T) {
 	m := consumer.Message{
 		Headers: map[string]string{"X-Request-Id": "some-tid1"},
 		Body:    `body`,
@@ -30,9 +29,8 @@ func TestProcessContentMsg_Unmarshall_Error(t *testing.T) {
 	p.processContentMsg(m)
 
 	assert.Equal(t, "error", hook.LastEntry().Level.String())
-	assert.Contains(t, hook.LastEntry().Message, "Could not unmarshall message with TID=")
+	assert.Contains(t, hook.LastEntry().Message, "Could not unmarshal message with TID=")
 	assert.Equal(t, 1, len(hook.Entries))
-
 }
 
 func TestProcessContentMsg_UnSupportedContent(t *testing.T) {
@@ -69,7 +67,7 @@ func TestProcessContentMsg_SupportedContent_EmptyUUID(t *testing.T) {
 	p.processContentMsg(m)
 
 	assert.Equal(t, "error", hook.LastEntry().Level.String())
-	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("UUID not found after message marshalling, skipping message with contentUri=http://wordpress-article-mapper/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b."))
+	assert.Contains(t, hook.LastEntry().Message, "UUID not found after message marshalling, skipping message with contentUri=http://wordpress-article-mapper/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b.")
 	assert.Equal(t, 1, len(hook.Entries))
 }
 
@@ -237,8 +235,7 @@ func TestProcessMetadataMsg_UnSupportedOrigins(t *testing.T) {
 	assert.Equal(t, 1, len(hook.Entries))
 }
 
-func TestProcessMetadataMsg_SupportedOrigin_Unmarshall_Error(t *testing.T) {
-
+func TestProcessMetadataMsg_SupportedOrigin_Unmarshal_Error(t *testing.T) {
 	m := consumer.Message{
 		Headers: map[string]string{"X-Request-Id": "some-tid1", "Origin-System-Id": "http://cmdb.ft.com/systems/binding-service"},
 		Body:    `some body`,
@@ -255,13 +252,12 @@ func TestProcessMetadataMsg_SupportedOrigin_Unmarshall_Error(t *testing.T) {
 	p.processMetadataMsg(m)
 
 	assert.Equal(t, "error", hook.LastEntry().Level.String())
-	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("Could not unmarshall message with TID=%v", m.Headers["X-Request-Id"]))
+	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("Could not unmarshal message with TID=%v", m.Headers["X-Request-Id"]))
 	assert.Equal(t, hook.LastEntry().Data["error"].(error).Error(), "invalid character 's' looking for beginning of value")
 	assert.Equal(t, 1, len(hook.Entries))
 }
 
 func TestProcessMetadataMsg_Combiner_Errors(t *testing.T) {
-
 	m, err := createMessage(map[string]string{"X-Request-Id": "some-tid1", "Origin-System-Id": "http://cmdb.ft.com/systems/binding-service"}, "./testData/annotations.json")
 	assert.NoError(t, err)
 
@@ -372,7 +368,6 @@ func TestProcessMetadataMsg_Successfully_Forwarded(t *testing.T) {
 }
 
 func TestForwardMsg(t *testing.T) {
-
 	tests := []struct {
 		headers map[string]string
 		uuid    string
@@ -462,7 +457,6 @@ func TestExtractTIDForEmptyHeader(t *testing.T) {
 }
 
 func TestSupports(t *testing.T) {
-
 	tests := []struct {
 		element   string
 		array     []string
@@ -510,7 +504,6 @@ type DummyMsgProducer struct {
 }
 
 func (p DummyMsgProducer) SendMessage(uuid string, m producer.Message) error {
-
 	if p.expError != nil {
 		return p.expError
 	}
@@ -559,7 +552,6 @@ func (c DummyDataCombiner) GetCombinedModel(uuid string) (CombinedModel, error) 
 }
 
 func createMessage(headers map[string]string, fixture string) (consumer.Message, error) {
-
 	f, err := os.Open(fixture)
 	if err != nil {
 		return consumer.Message{}, err

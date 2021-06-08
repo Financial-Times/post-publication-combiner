@@ -26,7 +26,6 @@ import (
 const serviceName = "post-publication-combiner"
 
 func main() {
-
 	app := cli.App(serviceName, "Service listening to content and metadata PostPublication events, and forwards a combined message to the queue")
 
 	port := app.String(cli.StringOpt{
@@ -259,11 +258,10 @@ func routeRequests(port *string, requestHandler *requestHandler, healthService *
 	}
 
 	wg.Wait()
-
 }
 
 func waitForSignal() {
-	ch := make(chan os.Signal)
+	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	<-ch
 }

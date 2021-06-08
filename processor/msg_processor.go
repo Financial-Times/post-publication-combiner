@@ -62,7 +62,7 @@ func (p *MsgProcessor) processContentMsg(m consumer.Message) {
 	var cm ContentMessage
 	b := []byte(m.Body)
 	if err := json.Unmarshal(b, &cm); err != nil {
-		logger.WithTransactionID(tid).WithError(err).Errorf("Could not unmarshall message with TID=%v", tid)
+		logger.WithTransactionID(tid).WithError(err).Errorf("Could not unmarshal message with TID=%v", tid)
 		return
 	}
 
@@ -116,7 +116,7 @@ func (p *MsgProcessor) processMetadataMsg(m consumer.Message) {
 	var ann AnnotationsMessage
 	b := []byte(m.Body)
 	if err := json.Unmarshal(b, &ann); err != nil {
-		logger.WithTransactionID(tid).WithError(err).Errorf("Could not unmarshall message with TID=%v", tid)
+		logger.WithTransactionID(tid).WithError(err).Errorf("Could not unmarshal message with TID=%v", tid)
 		return
 	}
 

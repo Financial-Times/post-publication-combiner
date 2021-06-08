@@ -110,7 +110,7 @@ func (dr dataRetriever) getAnnotations(uuid string) ([]Annotation, error) {
 
 	var things []Thing
 	if err := json.Unmarshal(b, &things); err != nil {
-		return ann, fmt.Errorf("could not unmarshall annotations for content with uuid=%v, error=%v", uuid, err.Error())
+		return ann, fmt.Errorf("could not unmarshal annotations for content with uuid=%v, error=%v", uuid, err.Error())
 	}
 	for _, t := range things {
 		ann = append(ann, Annotation{t})
@@ -133,7 +133,7 @@ func (dr dataRetriever) getContent(uuid string) (ContentModel, error) {
 	}
 
 	if err := json.Unmarshal(b, &c); err != nil {
-		return c, fmt.Errorf("could not unmarshall content with uuid=%v, error=%v", uuid, err.Error())
+		return c, fmt.Errorf("could not unmarshal content with uuid=%v, error=%v", uuid, err.Error())
 	}
 
 	return c, nil

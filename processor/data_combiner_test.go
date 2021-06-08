@@ -43,9 +43,9 @@ func TestGetCombinedModelForContent(t *testing.T) {
 				"uuid": "some uuid",
 			},
 			[]Annotation{},
-			errors.New("could not unmarshall annotations for content with uuid"),
+			errors.New("could not unmarshal annotations for content with uuid"),
 			CombinedModel{},
-			errors.New("could not unmarshall annotations for content with uuid"),
+			errors.New("could not unmarshal annotations for content with uuid"),
 		},
 		{
 			ContentModel{
@@ -298,7 +298,7 @@ func TestGetAnnotations(t *testing.T) {
 	}{
 		{
 			"some_uuid",
-			utils.ApiURL{"some_host", "some_endpoint"},
+			utils.ApiURL{BaseURL: "some_host", Endpoint: "some_endpoint"},
 			dummyClient{
 				statusCode: http.StatusNotFound,
 			},
@@ -307,7 +307,7 @@ func TestGetAnnotations(t *testing.T) {
 		},
 		{
 			"some_uuid",
-			utils.ApiURL{"some_host", "some_endpoint"},
+			utils.ApiURL{BaseURL: "some_host", Endpoint: "some_endpoint"},
 			dummyClient{
 				err: errors.New("some error"),
 			},
@@ -316,17 +316,17 @@ func TestGetAnnotations(t *testing.T) {
 		},
 		{
 			"some_uuid",
-			utils.ApiURL{"some_host", "some_endpoint"},
+			utils.ApiURL{BaseURL: "some_host", Endpoint: "some_endpoint"},
 			dummyClient{
 				statusCode: http.StatusOK,
 				body:       "text that can't be unmarshalled",
 			},
 			[]Annotation(nil),
-			errors.New("could not unmarshall annotations for content with uuid=some_uuid"),
+			errors.New("could not unmarshal annotations for content with uuid=some_uuid"),
 		},
 		{
 			"some_uuid",
-			utils.ApiURL{"some_host", "some_endpoint"},
+			utils.ApiURL{BaseURL: "some_host", Endpoint: "some_endpoint"},
 			dummyClient{
 				statusCode: http.StatusOK,
 				body:       `[{"predicate":"http://base-url/about","id":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995","apiUrl":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/organisation/Organisation","http://base-url/company/Company","http://base-url/company/PublicCompany"],"prefLabel":"Barclays"},{"predicate":"http://base-url/isClassifiedBy","id":"http://base-url/271ee5f7-d808-497d-bed3-1b961953dedc","apiUrl":"http://base-url/271ee5f7-d808-497d-bed3-1b961953dedc","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/classification/Classification","http://base-url/Section"],"prefLabel":"Financials"},{"predicate":"http://base-url/majorMentions","id":"http://base-url/a19d07d5-dc28-4c33-8745-a96f193df5cd","apiUrl":"http://base-url/a19d07d5-dc28-4c33-8745-a96f193df5cd","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/person/Person"],"prefLabel":"Jes Staley"}]`,
@@ -397,7 +397,7 @@ func TestGetContent(t *testing.T) {
 	}{
 		{
 			"some_uuid",
-			utils.ApiURL{"some_host", "some_endpoint"},
+			utils.ApiURL{BaseURL: "some_host", Endpoint: "some_endpoint"},
 			dummyClient{
 				statusCode: http.StatusNotFound,
 			},
@@ -406,7 +406,7 @@ func TestGetContent(t *testing.T) {
 		},
 		{
 			"some_uuid",
-			utils.ApiURL{"some_host", "some_endpoint"},
+			utils.ApiURL{BaseURL: "some_host", Endpoint: "some_endpoint"},
 			dummyClient{
 				err: errors.New("some error"),
 			},
@@ -415,17 +415,17 @@ func TestGetContent(t *testing.T) {
 		},
 		{
 			"some_uuid",
-			utils.ApiURL{"some_host", "some_endpoint"},
+			utils.ApiURL{BaseURL: "some_host", Endpoint: "some_endpoint"},
 			dummyClient{
 				statusCode: http.StatusOK,
 				body:       "text that can't be unmarshalled",
 			},
 			nil,
-			errors.New("could not unmarshall content with uuid=some_uuid"),
+			errors.New("could not unmarshal content with uuid=some_uuid"),
 		},
 		{
 			"622de808-3a7a-49bd-a7fb-2a33f64695be",
-			utils.ApiURL{"some_host", "some_endpoint"},
+			utils.ApiURL{BaseURL: "some_host", Endpoint: "some_endpoint"},
 			dummyClient{
 				statusCode: http.StatusOK,
 				body:       `{"uuid":"622de808-3a7a-49bd-a7fb-2a33f64695be","title":"Title","alternativeTitles":{"promotionalTitle":"Alternative title"},"type":null,"byline":"FT Reporters","brands":[{"id":"http://api.ft.com/things/40f636a3-5507-4311-9629-95376007cb7b"}],"identifiers":[{"authority":"FTCOM-METHODE_identifier","identifierValue":"53217c65-ecef-426e-a3ac-3787e2e62e87"}],"publishedDate":"2017-04-10T08:03:58.000Z","standfirst":"A simple line with an article summary","body":"<body>something relevant here<\/body>","description":null,"mediaType":null,"pixelWidth":null,"pixelHeight":null,"internalBinaryUrl":null,"externalBinaryUrl":null,"members":null,"mainImage":"2934de46-5240-4c7d-8576-f12ae12e4a37","standout":{"editorsChoice":false,"exclusive":false,"scoop":false},"comments":{"enabled":true},"copyright":null,"webUrl":null,"publishReference":"tid_unique_reference","lastModified":"2017-04-10T08:09:01.808Z","canBeSyndicated":"yes","firstPublishedDate":"2017-04-10T08:03:58.000Z","accessLevel":"subscribed","canBeDistributed":"yes"}`,
