@@ -28,14 +28,9 @@ type metadataRetrieverI interface {
 	getAnnotations(uuid string) ([]Annotation, error)
 }
 
-type dataRetriever struct {
-	Address utils.ApiURL
-	client  utils.Client
-}
-
-func NewDataCombiner(docStoreApiUrl utils.ApiURL, annApiUrl utils.ApiURL, c utils.Client) DataCombinerI {
-	var cRetriever contentRetrieverI = dataRetriever{docStoreApiUrl, c}
-	var mRetriever metadataRetrieverI = dataRetriever{annApiUrl, c}
+func NewDataCombiner(docStoreAPIUrl utils.ApiURL, annAPIUrl utils.ApiURL, c utils.Client) DataCombinerI {
+	var cRetriever contentRetrieverI = dataRetriever{docStoreAPIUrl, c}
+	var mRetriever metadataRetrieverI = dataRetriever{annAPIUrl, c}
 
 	return DataCombiner{
 		ContentRetriever:  cRetriever,
@@ -46,7 +41,7 @@ func NewDataCombiner(docStoreApiUrl utils.ApiURL, annApiUrl utils.ApiURL, c util
 func (dc DataCombiner) GetCombinedModelForContent(content ContentModel) (CombinedModel, error) {
 	uuid := content.getUUID()
 	if uuid == "" {
-		return CombinedModel{}, errors.New("content has no UUID provided. Can't deduce annotations for it.")
+		return CombinedModel{}, errors.New("content has no UUID provided, can't deduce annotations for it")
 	}
 
 	ann, err := dc.MetadataRetriever.getAnnotations(uuid)
@@ -94,8 +89,12 @@ func (dc DataCombiner) GetCombinedModel(uuid string) (CombinedModel, error) {
 	}, nil
 }
 
-func (dr dataRetriever) getAnnotations(uuid string) ([]Annotation, error) {
+type dataRetriever struct {
+	Address utils.ApiURL
+	client  utils.Client
+}
 
+func (dr dataRetriever) getAnnotations(uuid string) ([]Annotation, error) {
 	var ann []Annotation
 
 	b, status, err := utils.ExecuteHTTPRequest(uuid, dr.Address, dr.client)
@@ -119,8 +118,39 @@ func (dr dataRetriever) getAnnotations(uuid string) ([]Annotation, error) {
 	return ann, nil
 }
 
-func (dr dataRetriever) getContent(uuid string) (ContentModel, error) {
+func (dr dataRetriever) getInternalContent(uuid string) (ContentModel, []Annotation, error) {
+	var c map[string]interface{}
+	var ann []Annotation
 
+	b, status, err := utils.ExecuteHTTPRequest(uuid, dr.Address, dr.client)
+	if status == http.StatusNotFound {
+		return c, ann, nil
+	}
+	if err != nil {
+		return c, ann, err
+	}
+
+	// Unmarshal as content
+	if err = json.Unmarshal(b, &c); err != nil {
+		return c, ann, fmt.Errorf("could not unmarshal internal content with uuid=%v, error=%v", uuid, err.Error())
+	}
+	delete(c, "annotations")
+
+	// Unmarshal as annotations
+	var annotations struct {
+		Things []Thing `json:"annotations"`
+	}
+	if err := json.Unmarshal(b, &annotations); err != nil {
+		return c, ann, fmt.Errorf("could not unmarshal annotations for internal content with uuid=%v, error=%v", uuid, err.Error())
+	}
+	for _, t := range annotations.Things {
+		ann = append(ann, Annotation{t})
+	}
+
+	return c, ann, nil
+}
+
+func (dr dataRetriever) getContent(uuid string) (ContentModel, error) {
 	var c map[string]interface{}
 	b, status, err := utils.ExecuteHTTPRequest(uuid, dr.Address, dr.client)
 
