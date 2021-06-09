@@ -131,7 +131,7 @@ func TestGetCombinedModelForContent(t *testing.T) {
 
 	for _, testCase := range tests {
 		combiner := DataCombiner{
-			MetadataRetriever: DummyMetadataRetriever{testCase.retrievedAnn, testCase.retrievedErr},
+			InternalContentRetriever: DummyInternalContentRetriever{nil, testCase.retrievedAnn, testCase.retrievedErr},
 		}
 		m, err := combiner.GetCombinedModelForContent(testCase.contentModel)
 		assert.True(t, reflect.DeepEqual(testCase.expModel, m),
@@ -271,112 +271,13 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 
 	for _, testCase := range tests {
 		combiner := DataCombiner{
-			ContentRetriever:  DummyContentRetriever{testCase.retrievedContent, testCase.retrievedContentErr},
-			MetadataRetriever: DummyMetadataRetriever{testCase.retrievedAnn, testCase.retrievedAnnErr},
+			ContentRetriever:         DummyContentRetriever{testCase.retrievedContent, testCase.retrievedContentErr},
+			InternalContentRetriever: DummyInternalContentRetriever{nil, testCase.retrievedAnn, testCase.retrievedAnnErr},
 		}
 
 		m, err := combiner.GetCombinedModelForAnnotations(testCase.metadata)
 		assert.Equal(t, testCase.expModel, m,
 			fmt.Sprintf("Expected model: %v was not equal with the received one: %v \n", testCase.expModel, m))
-		if testCase.expError == nil {
-			assert.Equal(t, nil, err)
-		} else {
-			assert.Contains(t, err.Error(), testCase.expError.Error())
-		}
-	}
-}
-
-func TestGetAnnotations(t *testing.T) {
-	tests := []struct {
-		uuid           string
-		address        utils.ApiURL
-		dc             utils.Client
-		expAnnotations []Annotation
-		expError       error
-	}{
-		{
-			"some_uuid",
-			utils.ApiURL{BaseURL: "some_host", Endpoint: "some_endpoint"},
-			dummyClient{
-				statusCode: http.StatusNotFound,
-			},
-			[]Annotation(nil), //empty value for a slice
-			nil,
-		},
-		{
-			"some_uuid",
-			utils.ApiURL{BaseURL: "some_host", Endpoint: "some_endpoint"},
-			dummyClient{
-				err: errors.New("some error"),
-			},
-			[]Annotation(nil), //empty value for a slice
-			errors.New("some error"),
-		},
-		{
-			"some_uuid",
-			utils.ApiURL{BaseURL: "some_host", Endpoint: "some_endpoint"},
-			dummyClient{
-				statusCode: http.StatusOK,
-				body:       "text that can't be unmarshalled",
-			},
-			[]Annotation(nil),
-			errors.New("could not unmarshal annotations for content with uuid=some_uuid"),
-		},
-		{
-			"some_uuid",
-			utils.ApiURL{BaseURL: "some_host", Endpoint: "some_endpoint"},
-			dummyClient{
-				statusCode: http.StatusOK,
-				body:       `[{"predicate":"http://base-url/about","id":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995","apiUrl":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/organisation/Organisation","http://base-url/company/Company","http://base-url/company/PublicCompany"],"prefLabel":"Barclays"},{"predicate":"http://base-url/isClassifiedBy","id":"http://base-url/271ee5f7-d808-497d-bed3-1b961953dedc","apiUrl":"http://base-url/271ee5f7-d808-497d-bed3-1b961953dedc","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/classification/Classification","http://base-url/Section"],"prefLabel":"Financials"},{"predicate":"http://base-url/majorMentions","id":"http://base-url/a19d07d5-dc28-4c33-8745-a96f193df5cd","apiUrl":"http://base-url/a19d07d5-dc28-4c33-8745-a96f193df5cd","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/person/Person"],"prefLabel":"Jes Staley"}]`,
-			},
-			[]Annotation{
-				{
-					Thing: Thing{
-						ID:        "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
-						PrefLabel: "Barclays",
-						Types: []string{"http://base-url/core/Thing",
-							"http://base-url/concept/Concept",
-							"http://base-url/organisation/Organisation",
-							"http://base-url/company/Company",
-							"http://base-url/company/PublicCompany",
-						},
-						Predicate: "http://base-url/about",
-						ApiUrl:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
-					},
-				},
-				{
-					Thing: Thing{
-						ID:        "http://base-url/271ee5f7-d808-497d-bed3-1b961953dedc",
-						PrefLabel: "Financials",
-						Types: []string{"http://base-url/core/Thing",
-							"http://base-url/concept/Concept",
-							"http://base-url/classification/Classification",
-							"http://base-url/Section"},
-						Predicate: "http://base-url/isClassifiedBy",
-						ApiUrl:    "http://base-url/271ee5f7-d808-497d-bed3-1b961953dedc",
-					},
-				},
-				{
-					Thing: Thing{
-						ID:        "http://base-url/a19d07d5-dc28-4c33-8745-a96f193df5cd",
-						PrefLabel: "Jes Staley",
-						Types: []string{"http://base-url/core/Thing",
-							"http://base-url/concept/Concept",
-							"http://base-url/person/Person"},
-						Predicate: "http://base-url/majorMentions",
-						ApiUrl:    "http://base-url/a19d07d5-dc28-4c33-8745-a96f193df5cd",
-					},
-				},
-			},
-			nil,
-		},
-	}
-
-	for _, testCase := range tests {
-		dr := dataRetriever{testCase.address, testCase.dc}
-		ann, err := dr.getAnnotations(testCase.uuid)
-		assert.Equal(t, testCase.expAnnotations, ann,
-			fmt.Sprintf("Expected annotations: %v were not equal with received ones: %v \n", testCase.expAnnotations, ann))
 		if testCase.expError == nil {
 			assert.Equal(t, nil, err)
 		} else {
@@ -683,11 +584,12 @@ func (r DummyContentRetriever) getContent(uuid string) (ContentModel, error) {
 	return r.c, r.err
 }
 
-type DummyMetadataRetriever struct {
+type DummyInternalContentRetriever struct {
+	c   ContentModel
 	ann []Annotation
 	err error
 }
 
-func (r DummyMetadataRetriever) getAnnotations(uuid string) ([]Annotation, error) {
-	return r.ann, r.err
+func (r DummyInternalContentRetriever) getInternalContent(uuid string) (ContentModel, []Annotation, error) {
+	return r.c, r.ann, r.err
 }

@@ -14,13 +14,15 @@ import (
 	"github.com/Financial-Times/http-handlers-go/httphandlers"
 	"github.com/Financial-Times/message-queue-go-producer/producer"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
-	"github.com/Financial-Times/post-publication-combiner/v2/processor"
-	"github.com/Financial-Times/post-publication-combiner/v2/utils"
 	status "github.com/Financial-Times/service-status-go/httphandlers"
+
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	cli "github.com/jawher/mow.cli"
 	"github.com/rcrowley/go-metrics"
+
+	"github.com/Financial-Times/post-publication-combiner/v2/processor"
+	"github.com/Financial-Times/post-publication-combiner/v2/utils"
 )
 
 const serviceName = "post-publication-combiner"
@@ -91,17 +93,17 @@ func main() {
 		Desc:   "The endpoint used for content retrieval.",
 		EnvVar: "DOCUMENT_STORE_API_ENDPOINT",
 	})
-	publicAnnotationsAPIBaseURL := app.String(cli.StringOpt{
-		Name:   "publicAnnotationsApiBaseURL",
-		Value:  "http://localhost:8080/__public-annotations-api",
-		Desc:   "The address that the public-annotations-api can be reached at. Important for metadata retrieval.",
-		EnvVar: "PUBLIC_ANNOTATIONS_API_BASE_URL",
+	internalContentAPIBaseURL := app.String(cli.StringOpt{
+		Name:   "internalContentApiBaseURL",
+		Value:  "http://localhost:8080/__internal-content-api",
+		Desc:   "The address that the internal-content-api can be reached at. Important for internal content and metadata retrieval.",
+		EnvVar: "INTERNAL_CONTENT_API_BASE_URL",
 	})
-	publicAnnotationsAPIEndpoint := app.String(cli.StringOpt{
-		Name:   "publicAnnotationsApiEndpoint",
-		Value:  "/content/{uuid}/annotations",
-		Desc:   "The endpoint used for metadata retrieval.",
-		EnvVar: "PUBLIC_ANNOTATIONS_API_ENDPOINT",
+	internalContentAPIEndpoint := app.String(cli.StringOpt{
+		Name:   "internalContentApiEndpoint",
+		Value:  "/internalcontent/{uuid}?unrollContent=true",
+		Desc:   "The endpoint used for internal content and metadata retrieval.",
+		EnvVar: "INTERNAL_CONTENT_API_ENDPOINT",
 	})
 	whitelistedMetadataOriginSystemHeaders := app.Strings(cli.StringsOpt{
 		Name:   "whitelistedMetadataOriginSystemHeaders",
@@ -165,7 +167,7 @@ func main() {
 
 		// process and forward messages
 		dataCombiner := processor.NewDataCombiner(utils.ApiURL{BaseURL: *docStoreAPIBaseURL, Endpoint: *docStoreAPIEndpoint},
-			utils.ApiURL{BaseURL: *publicAnnotationsAPIBaseURL, Endpoint: *publicAnnotationsAPIEndpoint}, &client)
+			utils.ApiURL{BaseURL: *internalContentAPIBaseURL, Endpoint: *internalContentAPIEndpoint}, &client)
 
 		pQConf := processor.NewProducerConfig(*kafkaProxyAddress, *combinedTopic, *kafkaProxyRoutingHeader)
 		msgProducer := producer.NewMessageProducerWithHTTPClient(pQConf, &client)
@@ -183,7 +185,7 @@ func main() {
 			*whitelistedContentTypes)
 		go msgProcessor.ProcessMessages()
 
-		// process requested messages - used for reindexing and forced requests
+		// process requested messages - used for re-indexing and forced requests
 		forcedPQConf := processor.NewProducerConfig(*kafkaProxyAddress, *forcedCombinedTopic, *kafkaProxyRoutingHeader)
 		forcedMsgProducer := producer.NewMessageProducerWithHTTPClient(forcedPQConf, &client)
 		requestProcessor := processor.NewRequestProcessor(
@@ -192,7 +194,7 @@ func main() {
 			*whitelistedContentTypes)
 
 		// Since the health check for all producers and consumers just checks /topics for a response, we pick a producer and a consumer at random
-		routeRequests(port, &requestHandler{requestProcessor: requestProcessor}, NewCombinerHealthcheck(msgProducer, mc.Consumer, &client, *docStoreAPIBaseURL, *publicAnnotationsAPIBaseURL))
+		routeRequests(port, &requestHandler{requestProcessor: requestProcessor}, NewCombinerHealthcheck(msgProducer, mc.Consumer, &client, *docStoreAPIBaseURL, *internalContentAPIBaseURL))
 	}
 
 	logger.Infof("PostPublicationCombiner is starting with args %v", os.Args)
