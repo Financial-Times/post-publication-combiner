@@ -9,9 +9,10 @@ type ContentMessage struct {
 type ContentModel map[string]interface{}
 
 type CombinedModel struct {
-	UUID     string       `json:"uuid"`
-	Content  ContentModel `json:"content"`
-	Metadata []Annotation `json:"metadata"`
+	UUID            string       `json:"uuid"`
+	Content         ContentModel `json:"content"`
+	InternalContent ContentModel `json:"internalContent"`
+	Metadata        []Annotation `json:"metadata"`
 
 	ContentURI   string `json:"contentUri"`
 	LastModified string `json:"lastModified"`

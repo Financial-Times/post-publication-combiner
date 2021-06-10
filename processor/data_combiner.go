@@ -44,16 +44,17 @@ func (dc DataCombiner) GetCombinedModelForContent(content ContentModel) (Combine
 		return CombinedModel{}, errors.New("content has no UUID provided, can't deduce annotations for it")
 	}
 
-	_, ann, err := dc.InternalContentRetriever.getInternalContent(uuid)
+	internalContent, ann, err := dc.InternalContentRetriever.getInternalContent(uuid)
 	if err != nil {
 		return CombinedModel{}, err
 	}
 
 	return CombinedModel{
-		UUID:         uuid,
-		Content:      content,
-		Metadata:     ann,
-		LastModified: content.getLastModified(),
+		UUID:            uuid,
+		Content:         content,
+		InternalContent: internalContent,
+		Metadata:        ann,
+		LastModified:    content.getLastModified(),
 	}, nil
 }
 
@@ -75,17 +76,18 @@ func (dc DataCombiner) GetCombinedModel(uuid string) (CombinedModel, error) {
 		return CombinedModel{}, err
 	}
 
-	// Get annotations
-	_, annotations, err := dc.InternalContentRetriever.getInternalContent(uuid)
+	// Get internal content
+	internalContent, annotations, err := dc.InternalContentRetriever.getInternalContent(uuid)
 	if err != nil {
 		return CombinedModel{}, err
 	}
 
 	return CombinedModel{
-		UUID:         uuid,
-		Content:      content,
-		Metadata:     annotations,
-		LastModified: content.getLastModified(),
+		UUID:            uuid,
+		Content:         content,
+		InternalContent: internalContent,
+		Metadata:        annotations,
+		LastModified:    content.getLastModified(),
 	}, nil
 }
 

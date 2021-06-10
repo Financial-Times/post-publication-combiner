@@ -164,7 +164,7 @@ func TestProcessContentMsg_Successfully_Forwarded(t *testing.T) {
 
 	expMsg := producer.Message{
 		Headers: m.Headers,
-		Body:    `{"uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b","content":{"title":"simple title","type":"Article","uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b"},"metadata":null,"contentUri":"http://wordpress-article-mapper/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b","lastModified":"2017-03-30T13:09:06.48Z","deleted":false}`,
+		Body:    `{"uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b","content":{"title":"simple title","type":"Article","uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b"},"internalContent":null,"metadata":null,"contentUri":"http://wordpress-article-mapper/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b","lastModified":"2017-03-30T13:09:06.48Z","deleted":false}`,
 	}
 
 	dummyMsgProducer := DummyMsgProducer{t: t, expUUID: dummyDataCombiner.data.UUID, expMsg: expMsg}
@@ -199,7 +199,7 @@ func TestProcessContentMsg_DeleteEvent_Successfully_Forwarded(t *testing.T) {
 
 	expMsg := producer.Message{
 		Headers: m.Headers,
-		Body:    `{"uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b","contentUri":"http://wordpress-article-mapper/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b","deleted":true,"lastModified":"2017-03-30T13:09:06.48Z","content":null,"metadata":null}`,
+		Body:    `{"uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b","contentUri":"http://wordpress-article-mapper/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b","deleted":true,"lastModified":"2017-03-30T13:09:06.48Z","content":null,"internalContent":null,"metadata":null}`,
 	}
 
 	dummyMsgProducer := DummyMsgProducer{t: t, expUUID: dummyDataCombiner.data.UUID, expMsg: expMsg}
@@ -329,8 +329,9 @@ func TestProcessMetadataMsg_Successfully_Forwarded(t *testing.T) {
 		t:                t,
 		expectedMetadata: *am,
 		data: CombinedModel{
-			UUID:    "some_uuid",
-			Content: ContentModel{"uuid": "some_uuid", "title": "simple title", "type": "Article"},
+			UUID:            "some_uuid",
+			Content:         ContentModel{"uuid": "some_uuid", "title": "simple title", "type": "Article"},
+			InternalContent: ContentModel{"uuid": "some_uuid", "title": "simple title", "type": "Article"},
 			Metadata: []Annotation{
 				{
 					Thing: Thing{
@@ -350,7 +351,7 @@ func TestProcessMetadataMsg_Successfully_Forwarded(t *testing.T) {
 		}}
 	expMsg := producer.Message{
 		Headers: m.Headers,
-		Body:    `{"uuid":"some_uuid","contentUri":"","lastModified":"","deleted":false,"content":{"uuid":"some_uuid","title":"simple title","type":"Article"},"metadata":[{"thing":{"id":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995","prefLabel":"Barclays","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/organisation/Organisation","http://base-url/company/Company","http://base-url/company/PublicCompany"],"predicate":"http://base-url/about","apiUrl":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995"}}]}`,
+		Body:    `{"uuid":"some_uuid","contentUri":"","lastModified":"","deleted":false,"content":{"uuid":"some_uuid","title":"simple title","type":"Article"},"internalContent":{"uuid":"some_uuid","title":"simple title","type":"Article"},"metadata":[{"thing":{"id":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995","prefLabel":"Barclays","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/organisation/Organisation","http://base-url/company/Company","http://base-url/company/PublicCompany"],"predicate":"http://base-url/about","apiUrl":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995"}}]}`,
 	}
 
 	dummyMsgProducer := DummyMsgProducer{t: t, expUUID: dummyDataCombiner.data.UUID, expMsg: expMsg}
@@ -379,7 +380,7 @@ func TestForwardMsg(t *testing.T) {
 				"X-Request-Id": "some-tid1",
 			},
 			uuid: "uuid1",
-			body: `{"uuid":"uuid1","content":{"uuid":"","title":"","body":"","identifiers":null,"publishedDate":"","lastModified":"","firstPublishedDate":"","mediaType":"","byline":"","standfirst":"","description":"","mainImage":"","publishReference":"","type":""},"metadata":null,"contentUri":"","lastModified":"","deleted":false}`,
+			body: `{"uuid":"uuid1","content":{"uuid":"","title":"","body":"","identifiers":null,"publishedDate":"","lastModified":"","firstPublishedDate":"","mediaType":"","byline":"","standfirst":"","description":"","mainImage":"","publishReference":"","type":""},"internalContent":null,"metadata":null,"contentUri":"","lastModified":"","deleted":false}`,
 			err:  nil,
 		},
 		{

@@ -17,8 +17,9 @@ func TestForceMessageWithTID(t *testing.T) {
 		t:            t,
 		expectedUUID: testUUID,
 		data: CombinedModel{
-			UUID:    testUUID,
-			Content: ContentModel{"uuid": testUUID, "title": "simple title", "type": "Article"},
+			UUID:            testUUID,
+			Content:         ContentModel{"uuid": testUUID, "title": "simple title", "type": "Article"},
+			InternalContent: ContentModel{"uuid": testUUID, "title": "simple title", "type": "Article"},
 			Metadata: []Annotation{
 				{
 					Thing: Thing{
@@ -39,7 +40,7 @@ func TestForceMessageWithTID(t *testing.T) {
 	tid := "transaction_id_1"
 	expMsg := producer.Message{
 		Headers: map[string]string{"Message-Type": CombinerMessageType, "X-Request-Id": tid, "Origin-System-Id": CombinerOrigin, "Content-Type": ContentType},
-		Body:    `{"uuid":"some_uuid","contentUri":"","lastModified":"","deleted":false,"content":{"uuid":"some_uuid","title":"simple title","type":"Article"},"metadata":[{"thing":{"id":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995","prefLabel":"Barclays","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/organisation/Organisation","http://base-url/company/Company","http://base-url/company/PublicCompany"],"predicate":"http://base-url/about","apiUrl":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995"}}]}`,
+		Body:    `{"uuid":"some_uuid","contentUri":"","lastModified":"","deleted":false,"content":{"uuid":"some_uuid","title":"simple title","type":"Article"},"internalContent":{"uuid":"some_uuid","title":"simple title","type":"Article"},"metadata":[{"thing":{"id":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995","prefLabel":"Barclays","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/organisation/Organisation","http://base-url/company/Company","http://base-url/company/PublicCompany"],"predicate":"http://base-url/about","apiUrl":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995"}}]}`,
 	}
 
 	dummyMsgProducer := DummyMsgProducer{t: t, expUUID: testUUID, expTID: tid, expMsg: expMsg}
@@ -64,8 +65,9 @@ func TestForceMessageWithoutTID(t *testing.T) {
 		t:            t,
 		expectedUUID: testUUID,
 		data: CombinedModel{
-			UUID:    testUUID,
-			Content: ContentModel{"uuid": testUUID, "title": "simple title", "type": "Article"},
+			UUID:            testUUID,
+			Content:         ContentModel{"uuid": testUUID, "title": "simple title", "type": "Article"},
+			InternalContent: ContentModel{"uuid": testUUID, "title": "simple title", "type": "Article"},
 			Metadata: []Annotation{
 				{
 					Thing: Thing{
@@ -87,7 +89,7 @@ func TestForceMessageWithoutTID(t *testing.T) {
 	emptyTID := ""
 	expMsg := producer.Message{
 		Headers: map[string]string{"Message-Type": CombinerMessageType, "X-Request-Id": "[ignore]", "Origin-System-Id": CombinerOrigin, "Content-Type": ContentType},
-		Body:    `{"uuid":"some_uuid","contentUri":"","lastModified":"","deleted":false,"content":{"uuid":"some_uuid","title":"simple title","type":"Article"},"metadata":[{"thing":{"id":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995","prefLabel":"Barclays","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/organisation/Organisation","http://base-url/company/Company","http://base-url/company/PublicCompany"],"predicate":"http://base-url/about","apiUrl":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995"}}]}`,
+		Body:    `{"uuid":"some_uuid","contentUri":"","lastModified":"","deleted":false,"content":{"uuid":"some_uuid","title":"simple title","type":"Article"},"internalContent":{"uuid":"some_uuid","title":"simple title","type":"Article"},"metadata":[{"thing":{"id":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995","prefLabel":"Barclays","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/organisation/Organisation","http://base-url/company/Company","http://base-url/company/PublicCompany"],"predicate":"http://base-url/about","apiUrl":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995"}}]}`,
 	}
 
 	dummyMsgProducer := DummyMsgProducer{t: t, expUUID: testUUID, expMsg: expMsg}

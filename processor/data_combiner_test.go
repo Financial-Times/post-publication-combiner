@@ -40,15 +40,6 @@ func TestGetCombinedModelForContent(t *testing.T) {
 		},
 		{
 			ContentModel{
-				"uuid": "some uuid",
-			},
-			[]Annotation{},
-			errors.New("could not unmarshal annotations for content with uuid"),
-			CombinedModel{},
-			errors.New("could not unmarshal annotations for content with uuid"),
-		},
-		{
-			ContentModel{
 				"uuid":  "622de808-3a7a-49bd-a7fb-2a33f64695be",
 				"title": "Title",
 				"body":  "<body>something relevant here</body>",
@@ -107,6 +98,26 @@ func TestGetCombinedModelForContent(t *testing.T) {
 					"mainImage":          "2934de46-5240-4c7d-8576-f12ae12e4a37",
 					"publishReference":   "tid_unique_reference",
 				},
+				InternalContent: ContentModel{
+					"uuid":  "622de808-3a7a-49bd-a7fb-2a33f64695be",
+					"title": "Title",
+					"body":  "<body>something relevant here</body>",
+					"identifiers": []Identifier{
+						{
+							Authority:       "FTCOM-METHODE_identifier",
+							IdentifierValue: "53217c65-ecef-426e-a3ac-3787e2e62e87",
+						},
+					},
+					"publishedDate":      "2017-04-10T08:03:58.000Z",
+					"lastModified":       "2017-04-10T08:09:01.808Z",
+					"firstPublishedDate": "2017-04-10T08:03:58.000Z",
+					"mediaType":          "mediaType",
+					"byline":             "FT Reporters",
+					"standfirst":         "A simple line with an article summary",
+					"description":        "descr",
+					"mainImage":          "2934de46-5240-4c7d-8576-f12ae12e4a37",
+					"publishReference":   "tid_unique_reference",
+				},
 				Metadata: []Annotation{
 					{
 						Thing: Thing{
@@ -131,7 +142,7 @@ func TestGetCombinedModelForContent(t *testing.T) {
 
 	for _, testCase := range tests {
 		combiner := DataCombiner{
-			InternalContentRetriever: DummyInternalContentRetriever{nil, testCase.retrievedAnn, testCase.retrievedErr},
+			InternalContentRetriever: DummyInternalContentRetriever{testCase.contentModel, testCase.retrievedAnn, testCase.retrievedErr},
 		}
 		m, err := combiner.GetCombinedModelForContent(testCase.contentModel)
 		assert.True(t, reflect.DeepEqual(testCase.expModel, m),
@@ -199,6 +210,11 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 					"title": "title",
 					"body":  "body",
 				},
+				InternalContent: ContentModel{
+					"uuid":  "some_uuid",
+					"title": "title",
+					"body":  "body",
+				},
 				Metadata: []Annotation{
 					{Thing{
 						ID:        "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
@@ -253,6 +269,18 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 						},
 					},
 				},
+				InternalContent: ContentModel{
+					"uuid":  "some_uuid",
+					"title": "title",
+					"body":  "body",
+					"type":  "Video",
+					"identifiers": []Identifier{
+						{
+							Authority:       "http://api.ft.com/system/NEXT-VIDEO-EDITOR",
+							IdentifierValue: "some_uuid",
+						},
+					},
+				},
 				Metadata: []Annotation{
 					{Thing{
 						ID:        "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
@@ -272,7 +300,7 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 	for _, testCase := range tests {
 		combiner := DataCombiner{
 			ContentRetriever:         DummyContentRetriever{testCase.retrievedContent, testCase.retrievedContentErr},
-			InternalContentRetriever: DummyInternalContentRetriever{nil, testCase.retrievedAnn, testCase.retrievedAnnErr},
+			InternalContentRetriever: DummyInternalContentRetriever{testCase.retrievedContent, testCase.retrievedAnn, testCase.retrievedAnnErr},
 		}
 
 		m, err := combiner.GetCombinedModelForAnnotations(testCase.metadata)
