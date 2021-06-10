@@ -9,7 +9,7 @@ jobs:
         environment:
           KAFKA_PROXY_ADDR: "http://localhost:9000"
           DOCUMENT_STORE_BASE_URL: "http://localhost:9000/__document-store-api"
-          PUBLIC_ANNOTATIONS_API_BASE_URL: "http://localhost:9000/__public-annotations-api"
+          INTERNAL_CONTENT_API_BASE_URL: "http://localhost:9000/__internal-content-api"
       - image: peteclarkft/ersatz:stable
     steps:
       - checkout
