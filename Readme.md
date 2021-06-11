@@ -6,32 +6,34 @@
 
 ## Introduction
 
-This service builds combined messages (content + annotations) based on events received from `PostConceptAnnotations` or `PostPublicationEvents`.
-This is a combination point for synchronizing the content and metadata publish flows.
+This service builds combined messages (content + internal content + annotations) based on events received from `PostConceptAnnotations` or `PostPublicationEvents`.
+This is a combination point for synchronizing the content, internal content and metadata publish flows.
 Note: one publish event can result in two messages in the CombinedPostPublicationEvents topics (one for the content publish, and one for the metadata publish).
 
-For `PostPublicationEvents` message the service extracts the published content from the messages, and requests the metadata from `public-annotations-api`. It is possible for `public-annotations-api`  to return `404 Not Found` for the provided content uuid.
-For `PostConceptAnnotations` message the service extracts only the content uuid from the message, and requests the content from `document-store-api` and metadata from `public-annotations-api`. It is possible for `document-store-api` to return `404 Not Found` fot the provided content uuid.
+- For `PostPublicationEvents` messages the service extracts the published content from the messages, and requests the internal content and metadata from `internal-content-api`. It is possible for `internal-content-api` to return empty annotations field.
+- For `PostConceptAnnotations` message the service extracts only the content uuid from the message, and requests the content from `document-store-api` and internal content and metadata from `internal-content-api`. It is possible for `document-store-api` to return `404 Not Found` fot the provided content uuid.
+
 The service then constructs a `CombinedPostPublicationEvents` message with the received data. It is possible for either `content` or `metadata` fields in the constructed message to be empty, but not both.
 
 ### CombinedPostPublicationEvents format
 
-```json5
+```json
 {
   "uuid": "some_uuid", // content uuid
   "contentUri": "",
   "lastModified": "",
   "deleted": false,
   "content": {}, // data returned from document-store-api
-  "metadata": [] // data returned from public-annotations-api
+  "internalContent": {}, // data returned from internal-content-api without annotations
+  "metadata": [] // annotations data returned from internal-content-api
 }
 ```
 
 ### Dependencies
 
 - kafka/kafka-proxy
-- document-store-api (/content endpoint)
-- public-annotations-api (/content/{uuid}/annotations endpoint)
+- document-store-api (`/content` endpoint)
+- internal-content-api (`/internalcontent/{uuid}?unrollContent=true` endpoint)
 
 ## Installation
 
@@ -88,7 +90,7 @@ Checks if:
 
 - kafka-proxy is reachable
 - document-store-api is reachable
-- public-annotations-api is reachable
+- internal-content-api is reachable
 
 `/__build-info`
 
