@@ -216,14 +216,14 @@ func routeRequests(port *string, requestHandler *requestHandler, healthService *
 		checkKafkaProxyProducerConnectivity(healthService),
 		checkKafkaProxyConsumerConnectivity(healthService),
 		checkDocumentStoreAPIHealthcheck(healthService),
-		checkPublicAnnotationsAPIHealthcheck(healthService),
+		checkInternalContentAPIHealthcheck(healthService),
 	}
 
 	hc := health.TimedHealthCheck{
 		HealthCheck: health.HealthCheck{
 			SystemCode:  "upp-post-publication-combiner",
 			Name:        "post-publication-combiner",
-			Description: "Checks for service dependencies: document-store, public-annotations-api, kafka proxy and the presence of related topics",
+			Description: "Checks for service dependencies: document-store, internal-content-api, kafka proxy and the presence of related topics",
 			Checks:      checks,
 		},
 		Timeout: 10 * time.Second,
