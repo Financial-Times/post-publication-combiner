@@ -34,12 +34,26 @@ type Annotation struct {
 	Thing `json:"thing,omitempty"`
 }
 
+// Thing represents the structure of the annotation retrieved from internal content API which is different from
+// the structure of an annotation retrieved from public annotations API
 type Thing struct {
-	ID        string   `json:"id,omitempty"`
-	PrefLabel string   `json:"prefLabel,omitempty"`
-	Types     []string `json:"types,omitempty"`
-	Predicate string   `json:"predicate,omitempty"`
-	ApiUrl    string   `json:"apiUrl,omitempty"`
+	ID           string                   `json:"id,omitempty"`
+	PrefLabel    string                   `json:"prefLabel,omitempty"`
+	Types        []string                 `json:"types,omitempty"`
+	Predicate    string                   `json:"predicate,omitempty"`
+	ApiUrl       string                   `json:"apiUrl,omitempty"`
+	DirectType   string                   `json:"directType,omitempty"`
+	Type         string                   `json:"type,omitempty"`
+	LeiCode      string                   `json:"leiCode,omitempty"`
+	FIGI         string                   `json:"FIGI,omitempty"`
+	NAICS        []IndustryClassification `json:"NAICS,omitempty"`
+	IsDeprecated bool                     `json:"isDeprecated,omitempty"`
+}
+
+type IndustryClassification struct {
+	Identifier string `json:"identifier"`
+	PrefLabel  string `json:"prefLabel"`
+	Rank       int    `json:"rank"`
 }
 
 //******************* GET EXPECTED VALUES *********************
