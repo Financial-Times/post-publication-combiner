@@ -344,7 +344,7 @@ func TestProcessMetadataMsg_Successfully_Forwarded(t *testing.T) {
 							"http://base-url/company/PublicCompany",
 						},
 						Predicate: "http://base-url/about",
-						ApiUrl:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
+						APIURL:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
 					},
 				},
 			},

@@ -41,7 +41,7 @@ type Thing struct {
 	PrefLabel    string                   `json:"prefLabel,omitempty"`
 	Types        []string                 `json:"types,omitempty"`
 	Predicate    string                   `json:"predicate,omitempty"`
-	ApiUrl       string                   `json:"apiUrl,omitempty"`
+	APIURL       string                   `json:"apiUrl,omitempty"`
 	DirectType   string                   `json:"directType,omitempty"`
 	Type         string                   `json:"type,omitempty"`
 	LeiCode      string                   `json:"leiCode,omitempty"`

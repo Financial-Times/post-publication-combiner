@@ -98,7 +98,7 @@ func TestGetCombinedModelForContent(t *testing.T) {
 							"http://base-url/company/PublicCompany",
 						},
 						Predicate: "http://base-url/about",
-						ApiUrl:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
+						APIURL:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
 					},
 				},
 			},
@@ -157,7 +157,7 @@ func TestGetCombinedModelForContent(t *testing.T) {
 								"http://base-url/company/PublicCompany",
 							},
 							Predicate: "http://base-url/about",
-							ApiUrl:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
+							APIURL:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
 						},
 					},
 				},
@@ -220,7 +220,7 @@ func TestGetCombinedModelForContent(t *testing.T) {
 								Rank:       1,
 							},
 						},
-						ApiUrl:     "http://api.ft.com/organisations/8ec5ba9a-7648-4d72-a3ca-18c0ab3defe5",
+						APIURL:     "http://api.ft.com/organisations/8ec5ba9a-7648-4d72-a3ca-18c0ab3defe5",
 						DirectType: "http://www.ft.com/ontology/organisation/Organisation",
 						ID:         "http://api.ft.com/things/8ec5ba9a-7648-4d72-a3ca-18c0ab3defe5",
 						LeiCode:    "50670095ZD640VOZOO03",
@@ -291,7 +291,7 @@ func TestGetCombinedModelForContent(t *testing.T) {
 									Rank:       1,
 								},
 							},
-							ApiUrl:     "http://api.ft.com/organisations/8ec5ba9a-7648-4d72-a3ca-18c0ab3defe5",
+							APIURL:     "http://api.ft.com/organisations/8ec5ba9a-7648-4d72-a3ca-18c0ab3defe5",
 							DirectType: "http://www.ft.com/ontology/organisation/Organisation",
 							ID:         "http://api.ft.com/things/8ec5ba9a-7648-4d72-a3ca-18c0ab3defe5",
 							LeiCode:    "50670095ZD640VOZOO03",
@@ -474,7 +474,7 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 						"http://base-url/concept/Concept",
 					},
 					Predicate: "http://base-url/about",
-					ApiUrl:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
+					APIURL:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
 				},
 				},
 			},
@@ -498,7 +498,7 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 							"http://base-url/concept/Concept",
 						},
 						Predicate: "http://base-url/about",
-						ApiUrl:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
+						APIURL:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
 					},
 					},
 				},
@@ -527,7 +527,7 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 						"http://base-url/concept/Concept",
 					},
 					Predicate: "http://base-url/about",
-					ApiUrl:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
+					APIURL:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
 				},
 				},
 			},
@@ -566,7 +566,7 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 								"http://base-url/concept/Concept",
 							},
 							Predicate: "http://base-url/about",
-							ApiUrl:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
+							APIURL:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
 						},
 					},
 				},
@@ -589,7 +589,7 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 			retrievedAnn: []Annotation{
 				{
 					Thing{
-						ApiUrl:     "http://api.ft.com/people/65b38eaf-5f5c-447a-b5e6-59965c8a5055",
+						APIURL:     "http://api.ft.com/people/65b38eaf-5f5c-447a-b5e6-59965c8a5055",
 						DirectType: "http://www.ft.com/ontology/person/Person",
 						ID:         "http://api.ft.com/things/65b38eaf-5f5c-447a-b5e6-59965c8a5055",
 						Predicate:  "http://www.ft.com/ontology/hasContributor",
@@ -604,7 +604,7 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 				},
 				{
 					Thing{
-						ApiUrl:     "http://api.ft.com/things/9a6861ff-50ef-4e40-acf7-6659e127ae4e",
+						APIURL:     "http://api.ft.com/things/9a6861ff-50ef-4e40-acf7-6659e127ae4e",
 						DirectType: "http://www.ft.com/ontology/Location",
 						ID:         "http://api.ft.com/things/9a6861ff-50ef-4e40-acf7-6659e127ae4e",
 						Predicate:  "http://www.ft.com/ontology/annotation/mentions",
@@ -644,7 +644,7 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 				Metadata: []Annotation{
 					{
 						Thing{
-							ApiUrl:     "http://api.ft.com/people/65b38eaf-5f5c-447a-b5e6-59965c8a5055",
+							APIURL:     "http://api.ft.com/people/65b38eaf-5f5c-447a-b5e6-59965c8a5055",
 							DirectType: "http://www.ft.com/ontology/person/Person",
 							ID:         "http://api.ft.com/things/65b38eaf-5f5c-447a-b5e6-59965c8a5055",
 							Predicate:  "http://www.ft.com/ontology/hasContributor",
@@ -659,7 +659,7 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 					},
 					{
 						Thing{
-							ApiUrl:     "http://api.ft.com/things/9a6861ff-50ef-4e40-acf7-6659e127ae4e",
+							APIURL:     "http://api.ft.com/things/9a6861ff-50ef-4e40-acf7-6659e127ae4e",
 							DirectType: "http://www.ft.com/ontology/Location",
 							ID:         "http://api.ft.com/things/9a6861ff-50ef-4e40-acf7-6659e127ae4e",
 							Predicate:  "http://www.ft.com/ontology/annotation/mentions",
@@ -798,7 +798,7 @@ func TestGetInternalContent(t *testing.T) {
 							"http://base-url/company/PublicCompany",
 						},
 						Predicate: "http://base-url/about",
-						ApiUrl:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
+						APIURL:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
 					},
 				},
 				{
@@ -810,7 +810,7 @@ func TestGetInternalContent(t *testing.T) {
 							"http://base-url/classification/Classification",
 							"http://base-url/Section"},
 						Predicate: "http://base-url/isClassifiedBy",
-						ApiUrl:    "http://base-url/271ee5f7-d808-497d-bed3-1b961953dedc",
+						APIURL:    "http://base-url/271ee5f7-d808-497d-bed3-1b961953dedc",
 					},
 				},
 				{
@@ -821,7 +821,7 @@ func TestGetInternalContent(t *testing.T) {
 							"http://base-url/concept/Concept",
 							"http://base-url/person/Person"},
 						Predicate: "http://base-url/majorMentions",
-						ApiUrl:    "http://base-url/a19d07d5-dc28-4c33-8745-a96f193df5cd",
+						APIURL:    "http://base-url/a19d07d5-dc28-4c33-8745-a96f193df5cd",
 					},
 				},
 			},
@@ -867,7 +867,7 @@ func TestGetInternalContent(t *testing.T) {
 			expAnnotations: []Annotation{
 				{
 					Thing{
-						ApiUrl:     "http://api.ft.com/things/5a347026-38cf-4171-a2cf-ec078677add0",
+						APIURL:     "http://api.ft.com/things/5a347026-38cf-4171-a2cf-ec078677add0",
 						DirectType: "http://www.ft.com/ontology/Topic",
 						ID:         "http://api.ft.com/things/5a347026-38cf-4171-a2cf-ec078677add0",
 						Predicate:  "http://www.ft.com/ontology/annotation/mentions",
@@ -889,7 +889,7 @@ func TestGetInternalContent(t *testing.T) {
 								Rank:       1,
 							},
 						},
-						ApiUrl:     "http://api.ft.com/organisations/be2d839b-1969-4694-ae75-abe48d1e904c",
+						APIURL:     "http://api.ft.com/organisations/be2d839b-1969-4694-ae75-abe48d1e904c",
 						DirectType: "http://www.ft.com/ontology/company/PublicCompany",
 						ID:         "http://api.ft.com/things/be2d839b-1969-4694-ae75-abe48d1e904c",
 						LeiCode:    "894500UZJ5LG1F8J1U58",
