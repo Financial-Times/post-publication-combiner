@@ -51,10 +51,10 @@ spec:
           value: "{{ .Values.env.DOCUMENT_STORE_BASE_URL }}"
         - name: DOCUMENT_STORE_API_ENDPOINT
           value: "{{ .Values.env.DOCUMENT_STORE_API_ENDPOINT }}"
-        - name: PUBLIC_ANNOTATIONS_API_BASE_URL
-          value: "{{ .Values.env.PUBLIC_ANNOTATIONS_API_BASE_URL }}"
-        - name: PUBLIC_ANNOTATIONS_API_ENDPOINT
-          value: "{{ .Values.env.PUBLIC_ANNOTATIONS_API_ENDPOINT }}"
+        - name: INTERNAL_CONTENT_API_BASE_URL
+          value: "{{ .Values.env.INTERNAL_CONTENT_API_BASE_URL }}"
+        - name: INTERNAL_CONTENT_API_ENDPOINT
+          value: "{{ .Values.env.INTERNAL_CONTENT_API_ENDPOINT }}"
         - name: WHITELISTED_METADATA_ORIGIN_SYSTEM_HEADERS
           value: "{{ .Values.env.WHITELISTED_METADATA_ORIGIN_SYSTEM_HEADERS }}"
         - name: WHITELISTED_CONTENT_URIS

@@ -15,8 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestProcessContentMsg_Unmarshall_Error(t *testing.T) {
-
+func TestProcessContentMsg_Unmarshal_Error(t *testing.T) {
 	m := consumer.Message{
 		Headers: map[string]string{"X-Request-Id": "some-tid1"},
 		Body:    `body`,
@@ -30,9 +29,8 @@ func TestProcessContentMsg_Unmarshall_Error(t *testing.T) {
 	p.processContentMsg(m)
 
 	assert.Equal(t, "error", hook.LastEntry().Level.String())
-	assert.Contains(t, hook.LastEntry().Message, "Could not unmarshall message with TID=")
+	assert.Contains(t, hook.LastEntry().Message, "Could not unmarshal message with TID=")
 	assert.Equal(t, 1, len(hook.Entries))
-
 }
 
 func TestProcessContentMsg_UnSupportedContent(t *testing.T) {
@@ -69,7 +67,7 @@ func TestProcessContentMsg_SupportedContent_EmptyUUID(t *testing.T) {
 	p.processContentMsg(m)
 
 	assert.Equal(t, "error", hook.LastEntry().Level.String())
-	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("UUID not found after message marshalling, skipping message with contentUri=http://wordpress-article-mapper/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b."))
+	assert.Contains(t, hook.LastEntry().Message, "UUID not found after message marshalling, skipping message with contentUri=http://wordpress-article-mapper/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b.")
 	assert.Equal(t, 1, len(hook.Entries))
 }
 
@@ -166,7 +164,7 @@ func TestProcessContentMsg_Successfully_Forwarded(t *testing.T) {
 
 	expMsg := producer.Message{
 		Headers: m.Headers,
-		Body:    `{"uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b","content":{"title":"simple title","type":"Article","uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b"},"metadata":null,"contentUri":"http://wordpress-article-mapper/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b","lastModified":"2017-03-30T13:09:06.48Z","deleted":false}`,
+		Body:    `{"uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b","content":{"title":"simple title","type":"Article","uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b"},"internalContent":null,"metadata":null,"contentUri":"http://wordpress-article-mapper/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b","lastModified":"2017-03-30T13:09:06.48Z","deleted":false}`,
 	}
 
 	dummyMsgProducer := DummyMsgProducer{t: t, expUUID: dummyDataCombiner.data.UUID, expMsg: expMsg}
@@ -201,7 +199,7 @@ func TestProcessContentMsg_DeleteEvent_Successfully_Forwarded(t *testing.T) {
 
 	expMsg := producer.Message{
 		Headers: m.Headers,
-		Body:    `{"uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b","contentUri":"http://wordpress-article-mapper/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b","deleted":true,"lastModified":"2017-03-30T13:09:06.48Z","content":null,"metadata":null}`,
+		Body:    `{"uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b","contentUri":"http://wordpress-article-mapper/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b","deleted":true,"lastModified":"2017-03-30T13:09:06.48Z","content":null,"internalContent":null,"metadata":null}`,
 	}
 
 	dummyMsgProducer := DummyMsgProducer{t: t, expUUID: dummyDataCombiner.data.UUID, expMsg: expMsg}
@@ -237,8 +235,7 @@ func TestProcessMetadataMsg_UnSupportedOrigins(t *testing.T) {
 	assert.Equal(t, 1, len(hook.Entries))
 }
 
-func TestProcessMetadataMsg_SupportedOrigin_Unmarshall_Error(t *testing.T) {
-
+func TestProcessMetadataMsg_SupportedOrigin_Unmarshal_Error(t *testing.T) {
 	m := consumer.Message{
 		Headers: map[string]string{"X-Request-Id": "some-tid1", "Origin-System-Id": "http://cmdb.ft.com/systems/binding-service"},
 		Body:    `some body`,
@@ -255,13 +252,12 @@ func TestProcessMetadataMsg_SupportedOrigin_Unmarshall_Error(t *testing.T) {
 	p.processMetadataMsg(m)
 
 	assert.Equal(t, "error", hook.LastEntry().Level.String())
-	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("Could not unmarshall message with TID=%v", m.Headers["X-Request-Id"]))
+	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("Could not unmarshal message with TID=%v", m.Headers["X-Request-Id"]))
 	assert.Equal(t, hook.LastEntry().Data["error"].(error).Error(), "invalid character 's' looking for beginning of value")
 	assert.Equal(t, 1, len(hook.Entries))
 }
 
 func TestProcessMetadataMsg_Combiner_Errors(t *testing.T) {
-
 	m, err := createMessage(map[string]string{"X-Request-Id": "some-tid1", "Origin-System-Id": "http://cmdb.ft.com/systems/binding-service"}, "./testData/annotations.json")
 	assert.NoError(t, err)
 
@@ -333,8 +329,9 @@ func TestProcessMetadataMsg_Successfully_Forwarded(t *testing.T) {
 		t:                t,
 		expectedMetadata: *am,
 		data: CombinedModel{
-			UUID:    "some_uuid",
-			Content: ContentModel{"uuid": "some_uuid", "title": "simple title", "type": "Article"},
+			UUID:            "some_uuid",
+			Content:         ContentModel{"uuid": "some_uuid", "title": "simple title", "type": "Article"},
+			InternalContent: ContentModel{"uuid": "some_uuid", "title": "simple title", "type": "Article"},
 			Metadata: []Annotation{
 				{
 					Thing: Thing{
@@ -347,14 +344,14 @@ func TestProcessMetadataMsg_Successfully_Forwarded(t *testing.T) {
 							"http://base-url/company/PublicCompany",
 						},
 						Predicate: "http://base-url/about",
-						ApiUrl:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
+						APIURL:    "http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995",
 					},
 				},
 			},
 		}}
 	expMsg := producer.Message{
 		Headers: m.Headers,
-		Body:    `{"uuid":"some_uuid","contentUri":"","lastModified":"","deleted":false,"content":{"uuid":"some_uuid","title":"simple title","type":"Article"},"metadata":[{"thing":{"id":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995","prefLabel":"Barclays","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/organisation/Organisation","http://base-url/company/Company","http://base-url/company/PublicCompany"],"predicate":"http://base-url/about","apiUrl":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995"}}]}`,
+		Body:    `{"uuid":"some_uuid","contentUri":"","lastModified":"","deleted":false,"content":{"uuid":"some_uuid","title":"simple title","type":"Article"},"internalContent":{"uuid":"some_uuid","title":"simple title","type":"Article"},"metadata":[{"thing":{"id":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995","prefLabel":"Barclays","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/organisation/Organisation","http://base-url/company/Company","http://base-url/company/PublicCompany"],"predicate":"http://base-url/about","apiUrl":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995"}}]}`,
 	}
 
 	dummyMsgProducer := DummyMsgProducer{t: t, expUUID: dummyDataCombiner.data.UUID, expMsg: expMsg}
@@ -372,7 +369,6 @@ func TestProcessMetadataMsg_Successfully_Forwarded(t *testing.T) {
 }
 
 func TestForwardMsg(t *testing.T) {
-
 	tests := []struct {
 		headers map[string]string
 		uuid    string
@@ -384,7 +380,7 @@ func TestForwardMsg(t *testing.T) {
 				"X-Request-Id": "some-tid1",
 			},
 			uuid: "uuid1",
-			body: `{"uuid":"uuid1","content":{"uuid":"","title":"","body":"","identifiers":null,"publishedDate":"","lastModified":"","firstPublishedDate":"","mediaType":"","byline":"","standfirst":"","description":"","mainImage":"","publishReference":"","type":""},"metadata":null,"contentUri":"","lastModified":"","deleted":false}`,
+			body: `{"uuid":"uuid1","content":{"uuid":"","title":"","body":"","identifiers":null,"publishedDate":"","lastModified":"","firstPublishedDate":"","mediaType":"","byline":"","standfirst":"","description":"","mainImage":"","publishReference":"","type":""},"internalContent":null,"metadata":null,"contentUri":"","lastModified":"","deleted":false}`,
 			err:  nil,
 		},
 		{
@@ -462,7 +458,6 @@ func TestExtractTIDForEmptyHeader(t *testing.T) {
 }
 
 func TestSupports(t *testing.T) {
-
 	tests := []struct {
 		element   string
 		array     []string
@@ -510,7 +505,6 @@ type DummyMsgProducer struct {
 }
 
 func (p DummyMsgProducer) SendMessage(uuid string, m producer.Message) error {
-
 	if p.expError != nil {
 		return p.expError
 	}
@@ -559,7 +553,6 @@ func (c DummyDataCombiner) GetCombinedModel(uuid string) (CombinedModel, error) 
 }
 
 func createMessage(headers map[string]string, fixture string) (consumer.Message, error) {
-
 	f, err := os.Open(fixture)
 	if err != nil {
 		return consumer.Message{}, err

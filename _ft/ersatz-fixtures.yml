@@ -39,20 +39,27 @@ fixtures:
       status: 200
 
 ### all data about a given UUID are found ###
-  /__public-annotations-api/content/a224c5d3-0f1c-49bd-b70c-c88f5d29cf60/annotations:
+  /__internal-content-api/internalcontent/a224c5d3-0f1c-49bd-b70c-c88f5d29cf60?unrollContent=true:
     get:
       status: 200
       body:
-        - ID: "http://base-url/a224c5d3-0f1c-49bd-b70c-c88f5d29cf60"
-          PrefLabel: "Barclays"
-          Types:  
-            - "http://base-url/core/Thing"
-            - "http://base-url/concept/Concept"
-            - "http://base-url/organisation/Organisation"
-            - "http://base-url/company/Company"
-            - "http://base-url/company/PublicCompany"
-          Predicate: "http://base-url/about"
-          ApiUrl: "http://base-url/a224c5d3-0f1c-49bd-b70c-c88f5d29cf60"
+        uuid: a224c5d3-0f1c-49bd-b70c-c88f5d29cf60
+        title: Title
+        alternativeTitles:
+          promotionalTitle: Alternative title
+        type: ""
+        byline: FT Reporters
+        annotations:
+          - ID: "http://base-url/a224c5d3-0f1c-49bd-b70c-c88f5d29cf60"
+            PrefLabel: "Barclays"
+            Types:  
+              - "http://base-url/core/Thing"
+              - "http://base-url/concept/Concept"
+              - "http://base-url/organisation/Organisation"
+              - "http://base-url/company/Company"
+              - "http://base-url/company/PublicCompany"
+            Predicate: "http://base-url/about"
+            ApiUrl: "http://base-url/a224c5d3-0f1c-49bd-b70c-c88f5d29cf60"
   /__document-store-api/content/a224c5d3-0f1c-49bd-b70c-c88f5d29cf60:
     get:
       status: 200
@@ -77,20 +84,27 @@ fixtures:
         byline: FT Reporters
 
 ### no content found for this uuid ###
-  /__public-annotations-api/content/7b476898-189f-44b7-85d6-e68e5c8643a0/annotations:
+  /__internal-content-api/internalcontent/7b476898-189f-44b7-85d6-e68e5c8643a0?unrollContent=true:
     get:
       status: 200
       body:
-        - ID: "http://base-url/7b476898-189f-44b7-85d6-e68e5c8643a0"
-          PrefLabel: "Barclays"
-          Types:  
-            - "http://base-url/core/Thing"
-            - "http://base-url/concept/Concept"
-            - "http://base-url/organisation/Organisation"
-            - "http://base-url/company/Company"
-            - "http://base-url/company/PublicCompany"
-          Predicate: "http://base-url/about"
-          ApiUrl: "http://base-url/7b476898-189f-44b7-85d6-e68e5c8643a0"
+        uuid: 18e74de5-0f13-40ad-85d1-321c2af58624
+        title: Title
+        alternativeTitles:
+          promotionalTitle: Alternative title
+        type: ""
+        byline: FT Reporters
+        annotations:
+          - ID: "http://base-url/7b476898-189f-44b7-85d6-e68e5c8643a0"
+            PrefLabel: "Barclays"
+            Types:  
+              - "http://base-url/core/Thing"
+              - "http://base-url/concept/Concept"
+              - "http://base-url/organisation/Organisation"
+              - "http://base-url/company/Company"
+              - "http://base-url/company/PublicCompany"
+            Predicate: "http://base-url/about"
+            ApiUrl: "http://base-url/7b476898-189f-44b7-85d6-e68e5c8643a0"
 ### gtg ###
   /__gtg:
     get:
@@ -98,7 +112,7 @@ fixtures:
   /__document-store-api/__gtg:
     get:
       status: 200
-  /__public-annotations-api/__gtg:
+  /__internal-content-api/__gtg:
     get:
       status: 200
   /topics:

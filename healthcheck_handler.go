@@ -15,20 +15,20 @@ const (
 )
 
 type HealthcheckHandler struct {
-	httpClient                  utils.Client
-	producer                    producer.MessageProducer
-	consumer                    consumer.MessageConsumer
-	docStoreAPIBaseURL          string
-	publicAnnotationsAPIBaseURL string
+	httpClient                utils.Client
+	producer                  producer.MessageProducer
+	consumer                  consumer.MessageConsumer
+	docStoreAPIBaseURL        string
+	internalContentAPIBaseURL string
 }
 
-func NewCombinerHealthcheck(p producer.MessageProducer, c consumer.MessageConsumer, client utils.Client, docStoreAPIURL string, publicAnnotationsAPIURL string) *HealthcheckHandler {
+func NewCombinerHealthcheck(p producer.MessageProducer, c consumer.MessageConsumer, client utils.Client, docStoreAPIURL string, internalContentAPIURL string) *HealthcheckHandler {
 	return &HealthcheckHandler{
-		httpClient:                  client,
-		producer:                    p,
-		consumer:                    c,
-		docStoreAPIBaseURL:          docStoreAPIURL,
-		publicAnnotationsAPIBaseURL: publicAnnotationsAPIURL,
+		httpClient:                client,
+		producer:                  p,
+		consumer:                  c,
+		docStoreAPIBaseURL:        docStoreAPIURL,
+		internalContentAPIBaseURL: internalContentAPIURL,
 	}
 }
 
@@ -65,14 +65,14 @@ func checkDocumentStoreAPIHealthcheck(h *HealthcheckHandler) health.Check {
 	}
 }
 
-func checkPublicAnnotationsAPIHealthcheck(h *HealthcheckHandler) health.Check {
+func checkInternalContentAPIHealthcheck(h *HealthcheckHandler) health.Check {
 	return health.Check{
 		BusinessImpact:   "CombinedPostPublication messages can't be constructed. Indexing for content search won't work.",
-		Name:             "Check connectivity to public-annotations-api",
-		PanicGuide:       "https://runbooks.in.ft.com/annotationsapi",
+		Name:             "Check connectivity to internal-content-api",
+		PanicGuide:       "https://runbooks.in.ft.com/up-ica",
 		Severity:         2,
-		TechnicalSummary: "Public-annotations-api is not reachable. Messages can't be successfully constructed, neither forwarded.",
-		Checker:          h.checkIfPublicAnnotationsAPIIsReachable,
+		TechnicalSummary: "Internal-content-api is not reachable. Messages can't be successfully constructed, neither forwarded.",
+		Checker:          h.checkIfInternalContentAPIIsReachable,
 	}
 }
 
@@ -86,15 +86,15 @@ func (h *HealthcheckHandler) GTG() gtg.Status {
 	docStoreCheck := func() gtg.Status {
 		return gtgCheck(h.checkIfDocumentStoreIsReachable)
 	}
-	pubAnnApiCheck := func() gtg.Status {
-		return gtgCheck(h.checkIfPublicAnnotationsAPIIsReachable)
+	internalContentAPICheck := func() gtg.Status {
+		return gtgCheck(h.checkIfInternalContentAPIIsReachable)
 	}
 
 	return gtg.FailFastParallelCheck([]gtg.StatusChecker{
 		consumerCheck,
 		producerCheck,
 		docStoreCheck,
-		pubAnnApiCheck,
+		internalContentAPICheck,
 	})()
 }
 
@@ -114,8 +114,8 @@ func (h *HealthcheckHandler) checkIfDocumentStoreIsReachable() (string, error) {
 	return ResponseOK, nil
 }
 
-func (h *HealthcheckHandler) checkIfPublicAnnotationsAPIIsReachable() (string, error) {
-	_, _, err := utils.ExecuteSimpleHTTPRequest(h.publicAnnotationsAPIBaseURL+GTGEndpoint, h.httpClient)
+func (h *HealthcheckHandler) checkIfInternalContentAPIIsReachable() (string, error) {
+	_, _, err := utils.ExecuteSimpleHTTPRequest(h.internalContentAPIBaseURL+GTGEndpoint, h.httpClient)
 	if err != nil {
 		logger.WithError(err).Errorf("Healthcheck error: %v", err.Error())
 		return "", err

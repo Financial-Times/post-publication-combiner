@@ -16,8 +16,8 @@ import (
 )
 
 const (
-	DocStoreAPIPath          = "/doc-store-api"
-	PublicAnnotationsAPIPath = "/public-annotations-api"
+	DocStoreAPIPath        = "/doc-store-api"
+	InternalContentAPIPath = "/internal-content-api"
 )
 
 func TestCheckIfDocumentStoreIsReachable_Errors(t *testing.T) {
@@ -50,32 +50,32 @@ func TestCheckIfDocumentStoreIsReachable_Succeeds(t *testing.T) {
 	assert.Equal(t, ResponseOK, resp)
 }
 
-func TestCheckIfPublicAnnotationsApiIsReachable_Errors(t *testing.T) {
+func TestCheckIfInternalContentAPIIsReachable_Errors(t *testing.T) {
 	expError := errors.New("some error")
 	dc := dummyClient{
 		err: expError,
 	}
 	h := HealthcheckHandler{
-		publicAnnotationsAPIBaseURL: "pub-ann-base-url",
-		httpClient:                  &dc,
+		internalContentAPIBaseURL: "internal-content-api-base-url",
+		httpClient:                &dc,
 	}
 
-	resp, err := h.checkIfPublicAnnotationsAPIIsReachable()
+	resp, err := h.checkIfInternalContentAPIIsReachable()
 	assert.Contains(t, err.Error(), expError.Error(), fmt.Sprintf("Expected error %v not equal with received one %v", expError, err))
 	assert.Empty(t, resp)
 }
 
-func TestCheckIfPublicAnnotationsApiIsReachable_Succeeds(t *testing.T) {
+func TestCheckIfInternalContentAPIIsReachable_Succeeds(t *testing.T) {
 	dc := dummyClient{
 		statusCode: http.StatusOK,
 		body:       "all good",
 	}
 	h := HealthcheckHandler{
-		publicAnnotationsAPIBaseURL: "pub-ann-base-url",
-		httpClient:                  &dc,
+		internalContentAPIBaseURL: "internal-content-api-base-url",
+		httpClient:                &dc,
 	}
 
-	resp, err := h.checkIfPublicAnnotationsAPIIsReachable()
+	resp, err := h.checkIfInternalContentAPIIsReachable()
 	assert.Nil(t, err)
 	assert.Equal(t, ResponseOK, resp)
 }
@@ -86,10 +86,10 @@ func TestAllHealthChecks(t *testing.T) {
 		body:       "all good",
 	}
 	h := HealthcheckHandler{
-		publicAnnotationsAPIBaseURL: "pub-ann-base-url",
-		httpClient:                  &dc,
-		producer:                    &mockProducer{isConnectionHealthy: true},
-		consumer:                    &mockConsumer{isConnectionHealthy: true},
+		internalContentAPIBaseURL: "internal-content-api-base-url",
+		httpClient:                &dc,
+		producer:                  &mockProducer{isConnectionHealthy: true},
+		consumer:                  &mockConsumer{isConnectionHealthy: true},
 	}
 	testCases := []struct {
 		description        string
@@ -116,9 +116,9 @@ func TestAllHealthChecks(t *testing.T) {
 			expectedResponse:   ResponseOK,
 		},
 		{
-			description:        "Public-annotations-api is reachable",
+			description:        "Internal-content-api is reachable",
 			healthcheckHandler: h,
-			healthcheckFunc:    checkPublicAnnotationsAPIHealthcheck,
+			healthcheckFunc:    checkInternalContentAPIHealthcheck,
 			expectedResponse:   ResponseOK,
 		},
 	}
@@ -137,11 +137,11 @@ func TestGTG_Good(t *testing.T) {
 		statusCode: http.StatusOK,
 	}
 	h := HealthcheckHandler{
-		httpClient:                  &dc,
-		producer:                    &mockProducer{isConnectionHealthy: true},
-		consumer:                    &mockConsumer{isConnectionHealthy: true},
-		docStoreAPIBaseURL:          "doc-store-base-url",
-		publicAnnotationsAPIBaseURL: "pub-ann-base-url",
+		httpClient:                &dc,
+		producer:                  &mockProducer{isConnectionHealthy: true},
+		consumer:                  &mockConsumer{isConnectionHealthy: true},
+		docStoreAPIBaseURL:        "doc-store-base-url",
+		internalContentAPIBaseURL: "internal-content-api-base-url",
 	}
 
 	status := h.GTG()
@@ -151,48 +151,48 @@ func TestGTG_Good(t *testing.T) {
 
 func TestGTG_Bad(t *testing.T) {
 	testCases := []struct {
-		description       string
-		producer          producer.MessageProducer
-		consumer          consumer.MessageConsumer
-		docStoreAPIStatus int
-		pubAnnAPIStatus   int
+		description              string
+		producer                 producer.MessageProducer
+		consumer                 consumer.MessageConsumer
+		docStoreAPIStatus        int
+		internalContentAPIStatus int
 	}{
 		{
-			description:       "Producer KafkaProxy GTG endpoint returns 503",
-			producer:          &mockProducer{isConnectionHealthy: false},
-			consumer:          &mockConsumer{isConnectionHealthy: true},
-			docStoreAPIStatus: 200,
-			pubAnnAPIStatus:   200,
+			description:              "Producer KafkaProxy GTG endpoint returns 503",
+			producer:                 &mockProducer{isConnectionHealthy: false},
+			consumer:                 &mockConsumer{isConnectionHealthy: true},
+			docStoreAPIStatus:        200,
+			internalContentAPIStatus: 200,
 		},
 		{
-			description:       "Consumer KafkaProxy GTG endpoint returns 503",
-			producer:          &mockProducer{isConnectionHealthy: true},
-			consumer:          &mockConsumer{isConnectionHealthy: false},
-			docStoreAPIStatus: 200,
-			pubAnnAPIStatus:   200,
+			description:              "Consumer KafkaProxy GTG endpoint returns 503",
+			producer:                 &mockProducer{isConnectionHealthy: true},
+			consumer:                 &mockConsumer{isConnectionHealthy: false},
+			docStoreAPIStatus:        200,
+			internalContentAPIStatus: 200,
 		},
 		{
-			description:       "DocumentStoreApi GTG endpoint returns 503",
-			producer:          &mockProducer{isConnectionHealthy: true},
-			consumer:          &mockConsumer{isConnectionHealthy: true},
-			docStoreAPIStatus: 503,
-			pubAnnAPIStatus:   200,
+			description:              "DocumentStoreApi GTG endpoint returns 503",
+			producer:                 &mockProducer{isConnectionHealthy: true},
+			consumer:                 &mockConsumer{isConnectionHealthy: true},
+			docStoreAPIStatus:        503,
+			internalContentAPIStatus: 200,
 		},
 		{
-			description:       "PublicAnnotationsApi GTG endpoint returns 503",
-			producer:          &mockProducer{isConnectionHealthy: true},
-			consumer:          &mockConsumer{isConnectionHealthy: true},
-			docStoreAPIStatus: 200,
-			pubAnnAPIStatus:   503,
+			description:              "InternalContentAPI GTG endpoint returns 503",
+			producer:                 &mockProducer{isConnectionHealthy: true},
+			consumer:                 &mockConsumer{isConnectionHealthy: true},
+			docStoreAPIStatus:        200,
+			internalContentAPIStatus: 503,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
-			server := getMockedServer(tc.docStoreAPIStatus, tc.pubAnnAPIStatus)
+			server := getMockedServer(tc.docStoreAPIStatus, tc.internalContentAPIStatus)
 			defer server.Close()
 			h := NewCombinerHealthcheck(tc.producer, tc.consumer, http.DefaultClient, server.URL+DocStoreAPIPath,
-				server.URL+PublicAnnotationsAPIPath)
+				server.URL+InternalContentAPIPath)
 
 			status := h.GTG()
 			assert.False(t, status.GoodToGo)
@@ -200,14 +200,14 @@ func TestGTG_Bad(t *testing.T) {
 	}
 }
 
-func getMockedServer(docStoreAPIStatus, pubAnnAPIStatus int) *httptest.Server {
+func getMockedServer(docStoreAPIStatus, internalContentAPIStatus int) *httptest.Server {
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	mux.HandleFunc(DocStoreAPIPath+GTGEndpoint, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(docStoreAPIStatus)
 	})
-	mux.HandleFunc(PublicAnnotationsAPIPath+GTGEndpoint, func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(pubAnnAPIStatus)
+	mux.HandleFunc(InternalContentAPIPath+GTGEndpoint, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(internalContentAPIStatus)
 	})
 	return server
 }

@@ -12,8 +12,8 @@ env:
   KAFKA_PROXY_METADATA_CONSUMER_GROUP: k8s-post-publication-combiner-metadata-consumer
   DOCUMENT_STORE_BASE_URL: http://document-store-api:8080
   DOCUMENT_STORE_API_ENDPOINT: /content/{uuid}
-  PUBLIC_ANNOTATIONS_API_BASE_URL: http://public-annotations-api:8080
-  PUBLIC_ANNOTATIONS_API_ENDPOINT: /content/{uuid}/annotations
+  INTERNAL_CONTENT_API_BASE_URL: http://internal-content-api:8080
+  INTERNAL_CONTENT_API_ENDPOINT: "/internalcontent/{uuid}?unrollContent=true"
   WHITELISTED_METADATA_ORIGIN_SYSTEM_HEADERS: "http://cmdb.ft.com/systems/pac, http://cmdb.ft.com/systems/methode-web-pub, http://cmdb.ft.com/systems/next-video-editor"
   WHITELISTED_CONTENT_URIS: "methode-article-mapper, wordpress-article-mapper, next-video-mapper, upp-content-validator"
   WHITELISTED_CONTENT_TYPES: "Article, Video, MediaResource, Audio, ContentPackage, ,"
