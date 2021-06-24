@@ -105,6 +105,18 @@ func main() {
 		Desc:   "The endpoint used for internal content and metadata retrieval.",
 		EnvVar: "INTERNAL_CONTENT_API_ENDPOINT",
 	})
+	contentCollectionRWBaseURL := app.String(cli.StringOpt{
+		Name:   "contentCollectionRWBaseURL",
+		Value:  "http://localhost:8080/__content-collection-rw-neo4j",
+		Desc:   "The address that the content collection RW-er can be reached at. Important for content collection data retrieval.",
+		EnvVar: "CONTENT_COLLECTION_RW_BASE_URL",
+	})
+	contentCollectionRWEndpoint := app.String(cli.StringOpt{
+		Name:   "contentCollectionRWEndpoint",
+		Value:  "/content-collection/content-package/{uuid}",
+		Desc:   "The endpoint used for content collection data retrieval.",
+		EnvVar: "CONTENT_COLLECTION_RW_ENDPOINT",
+	})
 	whitelistedMetadataOriginSystemHeaders := app.Strings(cli.StringsOpt{
 		Name:   "whitelistedMetadataOriginSystemHeaders",
 		Value:  []string{"http://cmdb.ft.com/systems/pac", "http://cmdb.ft.com/systems/methode-web-pub", "http://cmdb.ft.com/systems/next-video-editor"},
@@ -167,7 +179,8 @@ func main() {
 
 		// process and forward messages
 		dataCombiner := processor.NewDataCombiner(utils.ApiURL{BaseURL: *docStoreAPIBaseURL, Endpoint: *docStoreAPIEndpoint},
-			utils.ApiURL{BaseURL: *internalContentAPIBaseURL, Endpoint: *internalContentAPIEndpoint}, &client)
+			utils.ApiURL{BaseURL: *internalContentAPIBaseURL, Endpoint: *internalContentAPIEndpoint},
+			utils.ApiURL{BaseURL: *contentCollectionRWBaseURL, Endpoint: *contentCollectionRWEndpoint}, &client)
 
 		pQConf := processor.NewProducerConfig(*kafkaProxyAddress, *combinedTopic, *kafkaProxyRoutingHeader)
 		msgProducer := producer.NewMessageProducerWithHTTPClient(pQConf, &client)
