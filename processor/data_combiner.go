@@ -16,8 +16,9 @@ type DataCombinerI interface {
 }
 
 type DataCombiner struct {
-	ContentRetriever         contentRetrieverI
-	InternalContentRetriever internalContentRetrieverI
+	ContentRetriever           contentRetrieverI
+	ContentCollectionRetriever contentRetrieverI
+	InternalContentRetriever   internalContentRetrieverI
 }
 
 type contentRetrieverI interface {
@@ -28,13 +29,15 @@ type internalContentRetrieverI interface {
 	getInternalContent(uuid string) (ContentModel, []Annotation, error)
 }
 
-func NewDataCombiner(docStoreAPIUrl utils.ApiURL, internalContentAPIUrl utils.ApiURL, c utils.Client) DataCombinerI {
+func NewDataCombiner(docStoreAPIUrl utils.ApiURL, internalContentAPIUrl utils.ApiURL, contentCollectionRWUrl utils.ApiURL, c utils.Client) DataCombinerI {
 	var cRetriever contentRetrieverI = dataRetriever{docStoreAPIUrl, c}
+	var ccRetriever contentRetrieverI = dataRetriever{contentCollectionRWUrl, c}
 	var icRetriever internalContentRetrieverI = dataRetriever{internalContentAPIUrl, c}
 
 	return DataCombiner{
-		ContentRetriever:         cRetriever,
-		InternalContentRetriever: icRetriever,
+		ContentRetriever:           cRetriever,
+		ContentCollectionRetriever: ccRetriever,
+		InternalContentRetriever:   icRetriever,
 	}
 }
 
@@ -59,7 +62,6 @@ func (dc DataCombiner) GetCombinedModelForContent(content ContentModel) (Combine
 }
 
 func (dc DataCombiner) GetCombinedModelForAnnotations(metadata AnnotationsMessage) (CombinedModel, error) {
-
 	uuid := metadata.getContentUUID()
 	if uuid == "" {
 		return CombinedModel{}, errors.New("annotations have no UUID referenced")
@@ -69,17 +71,32 @@ func (dc DataCombiner) GetCombinedModelForAnnotations(metadata AnnotationsMessag
 }
 
 func (dc DataCombiner) GetCombinedModel(uuid string) (CombinedModel, error) {
-
 	// Get content
 	content, err := dc.ContentRetriever.getContent(uuid)
 	if err != nil {
 		return CombinedModel{}, err
 	}
 
-	// Get internal content
-	internalContent, annotations, err := dc.InternalContentRetriever.getInternalContent(uuid)
-	if err != nil {
-		return CombinedModel{}, err
+	var internalContent ContentModel
+	var annotations []Annotation
+	if content.getUUID() != "" {
+		// Internal content is available only if content is available
+		internalContent, annotations, err = dc.InternalContentRetriever.getInternalContent(uuid)
+		if err != nil {
+			return CombinedModel{}, err
+		}
+	} else {
+		// There is nothing in the document store
+		// try to retrieve data from the content collection store
+		content, err = dc.ContentCollectionRetriever.getContent(uuid)
+		if err != nil {
+			return CombinedModel{}, err
+		}
+
+		// Content collection found but the RW-er does not include type in the content
+		if content.getUUID() != "" {
+			content["type"] = "ContentCollection"
+		}
 	}
 
 	return CombinedModel{

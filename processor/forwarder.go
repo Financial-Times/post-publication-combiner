@@ -2,6 +2,7 @@ package processor
 
 import (
 	"encoding/json"
+
 	"github.com/Financial-Times/go-logger"
 	"github.com/Financial-Times/message-queue-go-producer/producer"
 )
@@ -33,7 +34,7 @@ func NewProducerConfig(proxyAddress string, topic string, routingHeader string) 
 func (p *Forwarder) filterAndForwardMsg(headers map[string]string, combinedMSG *CombinedModel, tid string) error {
 
 	if combinedMSG.Content != nil && !isTypeAllowed(p.SupportedContentTypes, combinedMSG.Content.getType()) {
-		logger.WithTransactionID(tid).Infof("%v - Skipped unsupported content with type: %v", tid, combinedMSG.Content.getType())
+		logger.WithTransactionID(tid).WithUUID(combinedMSG.UUID).Infof("%v - Skipped unsupported content with type: %v", tid, combinedMSG.Content.getType())
 		return InvalidContentTypeError
 	}
 

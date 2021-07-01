@@ -296,7 +296,10 @@ func TestProcessMetadataMsg_Forwarder_Errors(t *testing.T) {
 	allowedOrigins := []string{"http://cmdb.ft.com/systems/binding-service", "http://cmdb.ft.com/systems/methode-web-pub"}
 	allowedContentTypes := []string{"Article", "Video", ""}
 	config := MsgProcessorConfig{SupportedHeaders: allowedOrigins}
-	dummyDataCombiner := DummyDataCombiner{t: t, expectedMetadata: *am, data: CombinedModel{UUID: "some_uuid"}}
+	dummyDataCombiner := DummyDataCombiner{t: t, expectedMetadata: *am, data: CombinedModel{
+		UUID:    "some_uuid",
+		Content: ContentModel{"uuid": "some_uuid", "title": "simple title", "type": "Article"},
+	}}
 	dummyMsgProducer := DummyMsgProducer{t: t, expError: errors.New("some dummyMsgProducer error")}
 
 	p := &MsgProcessor{config: config, DataCombiner: dummyDataCombiner, Forwarder: NewForwarder(dummyMsgProducer, allowedContentTypes)}
@@ -310,6 +313,33 @@ func TestProcessMetadataMsg_Forwarder_Errors(t *testing.T) {
 	assert.Equal(t, "error", hook.LastEntry().Level.String())
 	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("%v - Error sending transformed message to queue", m.Headers["X-Request-Id"]))
 	assert.Equal(t, hook.LastEntry().Data["error"].(error).Error(), "some dummyMsgProducer error")
+	assert.Equal(t, 1, len(hook.Entries))
+}
+func TestProcessMetadataMsg_Forward_Skipped(t *testing.T) {
+	m, err := createMessage(map[string]string{"X-Request-Id": "some-tid1", "Origin-System-Id": "http://cmdb.ft.com/systems/binding-service"}, "./testData/annotations.json")
+	assert.NoError(t, err)
+
+	am := &AnnotationsMessage{}
+	err = json.Unmarshal([]byte(m.Body), am)
+	assert.NoError(t, err)
+
+	allowedOrigins := []string{"http://cmdb.ft.com/systems/binding-service", "http://cmdb.ft.com/systems/methode-web-pub"}
+	allowedContentTypes := []string{"Article", "Video", ""}
+	config := MsgProcessorConfig{SupportedHeaders: allowedOrigins}
+	dummyDataCombiner := DummyDataCombiner{t: t, expectedMetadata: *am, data: CombinedModel{UUID: "some_uuid"}}
+	// The producer should return an error so that the test won't pass if the message forward is attempted
+	dummyMsgProducer := DummyMsgProducer{t: t, expError: errors.New("some dummyMsgProducer error")}
+
+	p := &MsgProcessor{config: config, DataCombiner: dummyDataCombiner, Forwarder: NewForwarder(dummyMsgProducer, allowedContentTypes)}
+
+	hook := testLogger.NewTestHook("dummyDataCombiner")
+	assert.Nil(t, hook.LastEntry())
+	assert.Equal(t, 0, len(hook.Entries))
+
+	p.processMetadataMsg(m)
+
+	assert.Equal(t, "warning", hook.LastEntry().Level.String())
+	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("%v - Skipped. Could not find content when processing an annotations publish event.", m.Headers["X-Request-Id"]))
 	assert.Equal(t, 1, len(hook.Entries))
 }
 

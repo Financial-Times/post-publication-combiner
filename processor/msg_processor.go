@@ -126,6 +126,11 @@ func (p *MsgProcessor) processMetadataMsg(m consumer.Message) {
 		logger.WithTransactionID(tid).WithError(err).Errorf("%v - Error obtaining the combined message. Content couldn't get read. Message will be skipped.", tid)
 		return
 	}
+	if combinedMSG.Content.getUUID() == "" {
+		logger.WithTransactionID(tid).Warnf("%v - Skipped. Could not find content when processing an annotations publish event.", tid)
+		return
+	}
+
 	p.Forwarder.filterAndForwardMsg(m.Headers, &combinedMSG, tid)
 }
 

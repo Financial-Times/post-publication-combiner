@@ -453,8 +453,13 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 			expError:            errors.New("some content error"),
 		},
 		{
-			name:            "annotations error",
-			metadata:        AnnotationsMessage{Annotations: &AnnotationsModel{UUID: "some_uuid"}},
+			name:     "annotations error",
+			metadata: AnnotationsMessage{Annotations: &AnnotationsModel{UUID: "some_uuid"}},
+			retrievedContent: ContentModel{
+				"uuid":  "some_uuid",
+				"title": "title",
+				"body":  "body",
+			},
 			retrievedAnnErr: errors.New("some metadata error"),
 			expError:        errors.New("some metadata error"),
 		},
@@ -584,6 +589,7 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 				"types": []string{
 					"http://www.ft.com/ontology/content/LiveBlogPackage",
 				},
+				"uuid": "67731161-9ca4-4074-a50b-878b163bb02d",
 			},
 			retrievedContentErr: nil,
 			retrievedAnn: []Annotation{
@@ -630,6 +636,7 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 					"types": []string{
 						"http://www.ft.com/ontology/content/LiveBlogPackage",
 					},
+					"uuid": "67731161-9ca4-4074-a50b-878b163bb02d",
 				},
 				InternalContent: ContentModel{
 					"prefLabel":     "Coronavirus latest: Taj Mahal reopens as India’s Covid wave recedes",
@@ -640,6 +647,7 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 					"types": []string{
 						"http://www.ft.com/ontology/content/LiveBlogPackage",
 					},
+					"uuid": "67731161-9ca4-4074-a50b-878b163bb02d",
 				},
 				Metadata: []Annotation{
 					{
@@ -681,11 +689,206 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			combiner := DataCombiner{
-				ContentRetriever:         DummyContentRetriever{testCase.retrievedContent, testCase.retrievedContentErr},
-				InternalContentRetriever: DummyInternalContentRetriever{testCase.retrievedContent, testCase.retrievedAnn, testCase.retrievedAnnErr},
+				ContentRetriever:           DummyContentRetriever{testCase.retrievedContent, testCase.retrievedContentErr},
+				ContentCollectionRetriever: DummyContentRetriever{ContentModel{}, nil},
+				InternalContentRetriever:   DummyInternalContentRetriever{testCase.retrievedContent, testCase.retrievedAnn, testCase.retrievedAnnErr},
 			}
 
 			m, err := combiner.GetCombinedModelForAnnotations(testCase.metadata)
+			assert.Equal(t, testCase.expModel, m,
+				fmt.Sprintf("Expected model: %v was not equal with the received one: %v \n", testCase.expModel, m))
+			if testCase.expError == nil {
+				assert.Equal(t, nil, err)
+			} else {
+				assert.Contains(t, err.Error(), testCase.expError.Error())
+			}
+		})
+	}
+}
+
+func TestGetCombinedModel(t *testing.T) {
+	tests := []struct {
+		name                          string
+		retrievedContent              ContentModel
+		retrievedContentErr           error
+		retrievedAnn                  []Annotation
+		retrievedAnnErr               error
+		retrievedContentCollection    ContentModel
+		retrievedContentCollectionErr error
+		expModel                      CombinedModel
+		expError                      error
+	}{
+		{
+			name:                       "content not found",
+			retrievedContent:           ContentModel{},
+			retrievedContentCollection: ContentModel{},
+			expModel: CombinedModel{
+				UUID:            "some-uuid",
+				Content:         ContentModel{},
+				InternalContent: nil,
+				Metadata:        nil,
+			},
+		},
+		{
+			name:                          "content collection retrieval error",
+			retrievedContent:              ContentModel{},
+			retrievedContentCollectionErr: errors.New("some content collection retrieval error"),
+			expError:                      errors.New("some content collection retrieval error"),
+		},
+		{
+			name:             "valid content collection",
+			retrievedContent: ContentModel{},
+			retrievedContentCollection: ContentModel{
+				"uuid": "some-uuid",
+				"items": []map[string]string{
+					{
+						"uuid": "d9403324-6d33-11e7-bfeb-33fe0c5b7eaa",
+					},
+					{
+						"uuid": "427b8cb0-71d7-11e7-aca6-c6bd07df1a3c",
+					},
+				},
+				"publishReference": "tid_123456",
+				"lastModified":     "2020-10-31T10:39:47.598Z",
+			},
+			expModel: CombinedModel{
+				UUID: "some-uuid",
+				Content: ContentModel{
+					"uuid": "some-uuid",
+					"items": []map[string]string{
+						{
+							"uuid": "d9403324-6d33-11e7-bfeb-33fe0c5b7eaa",
+						},
+						{
+							"uuid": "427b8cb0-71d7-11e7-aca6-c6bd07df1a3c",
+						},
+					},
+					"type":             "ContentCollection",
+					"publishReference": "tid_123456",
+					"lastModified":     "2020-10-31T10:39:47.598Z",
+				},
+				InternalContent: nil,
+				Metadata:        nil,
+				LastModified:    "2020-10-31T10:39:47.598Z",
+			},
+		},
+		{
+			name: "valid content and extended annotations",
+			retrievedContent: ContentModel{
+				"prefLabel":     "Coronavirus latest: Taj Mahal reopens as India’s Covid wave recedes",
+				"publishedDate": "2021-06-15T22:26:35.076Z",
+				"realtime":      true,
+				"title":         "Coronavirus latest: Taj Mahal reopens as India’s Covid wave recedes",
+				"type":          "http://www.ft.com/ontology/content/LiveBlogPackage",
+				"types": []string{
+					"http://www.ft.com/ontology/content/LiveBlogPackage",
+				},
+				"uuid": "some-uuid",
+			},
+			retrievedContentErr: nil,
+			retrievedAnn: []Annotation{
+				{
+					Thing{
+						APIURL:     "http://api.ft.com/people/65b38eaf-5f5c-447a-b5e6-59965c8a5055",
+						DirectType: "http://www.ft.com/ontology/person/Person",
+						ID:         "http://api.ft.com/things/65b38eaf-5f5c-447a-b5e6-59965c8a5055",
+						Predicate:  "http://www.ft.com/ontology/hasContributor",
+						PrefLabel:  "Leke Oso Alabi",
+						Type:       "PERSON",
+						Types: []string{
+							"http://www.ft.com/ontology/core/Thing",
+							"http://www.ft.com/ontology/concept/Concept",
+							"http://www.ft.com/ontology/person/Person",
+						},
+					},
+				},
+				{
+					Thing{
+						APIURL:     "http://api.ft.com/things/9a6861ff-50ef-4e40-acf7-6659e127ae4e",
+						DirectType: "http://www.ft.com/ontology/Location",
+						ID:         "http://api.ft.com/things/9a6861ff-50ef-4e40-acf7-6659e127ae4e",
+						Predicate:  "http://www.ft.com/ontology/annotation/mentions",
+						PrefLabel:  "India",
+						Type:       "LOCATION",
+						Types: []string{
+							"http://www.ft.com/ontology/core/Thing",
+							"http://www.ft.com/ontology/concept/Concept",
+							"http://www.ft.com/ontology/Location",
+						},
+					},
+				},
+			},
+			retrievedAnnErr: nil,
+			expModel: CombinedModel{
+				UUID: "some-uuid",
+				Content: ContentModel{
+					"prefLabel":     "Coronavirus latest: Taj Mahal reopens as India’s Covid wave recedes",
+					"publishedDate": "2021-06-15T22:26:35.076Z",
+					"realtime":      true,
+					"title":         "Coronavirus latest: Taj Mahal reopens as India’s Covid wave recedes",
+					"type":          "http://www.ft.com/ontology/content/LiveBlogPackage",
+					"types": []string{
+						"http://www.ft.com/ontology/content/LiveBlogPackage",
+					},
+					"uuid": "some-uuid",
+				},
+				InternalContent: ContentModel{
+					"prefLabel":     "Coronavirus latest: Taj Mahal reopens as India’s Covid wave recedes",
+					"publishedDate": "2021-06-15T22:26:35.076Z",
+					"realtime":      true,
+					"title":         "Coronavirus latest: Taj Mahal reopens as India’s Covid wave recedes",
+					"type":          "http://www.ft.com/ontology/content/LiveBlogPackage",
+					"types": []string{
+						"http://www.ft.com/ontology/content/LiveBlogPackage",
+					},
+					"uuid": "some-uuid",
+				},
+				Metadata: []Annotation{
+					{
+						Thing{
+							APIURL:     "http://api.ft.com/people/65b38eaf-5f5c-447a-b5e6-59965c8a5055",
+							DirectType: "http://www.ft.com/ontology/person/Person",
+							ID:         "http://api.ft.com/things/65b38eaf-5f5c-447a-b5e6-59965c8a5055",
+							Predicate:  "http://www.ft.com/ontology/hasContributor",
+							PrefLabel:  "Leke Oso Alabi",
+							Type:       "PERSON",
+							Types: []string{
+								"http://www.ft.com/ontology/core/Thing",
+								"http://www.ft.com/ontology/concept/Concept",
+								"http://www.ft.com/ontology/person/Person",
+							},
+						},
+					},
+					{
+						Thing{
+							APIURL:     "http://api.ft.com/things/9a6861ff-50ef-4e40-acf7-6659e127ae4e",
+							DirectType: "http://www.ft.com/ontology/Location",
+							ID:         "http://api.ft.com/things/9a6861ff-50ef-4e40-acf7-6659e127ae4e",
+							Predicate:  "http://www.ft.com/ontology/annotation/mentions",
+							PrefLabel:  "India",
+							Type:       "LOCATION",
+							Types: []string{
+								"http://www.ft.com/ontology/core/Thing",
+								"http://www.ft.com/ontology/concept/Concept",
+								"http://www.ft.com/ontology/Location",
+							},
+						},
+					},
+				},
+			},
+			expError: nil,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run(testCase.name, func(t *testing.T) {
+			combiner := DataCombiner{
+				ContentRetriever:           DummyContentRetriever{testCase.retrievedContent, testCase.retrievedContentErr},
+				ContentCollectionRetriever: DummyContentRetriever{testCase.retrievedContentCollection, testCase.retrievedContentCollectionErr},
+				InternalContentRetriever:   DummyInternalContentRetriever{testCase.retrievedContent, testCase.retrievedAnn, testCase.retrievedAnnErr},
+			}
+
+			m, err := combiner.GetCombinedModel("some-uuid")
 			assert.Equal(t, testCase.expModel, m,
 				fmt.Sprintf("Expected model: %v was not equal with the received one: %v \n", testCase.expModel, m))
 			if testCase.expError == nil {
