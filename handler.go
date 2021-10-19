@@ -5,8 +5,8 @@ import (
 
 	"github.com/Financial-Times/go-logger"
 	"github.com/Financial-Times/post-publication-combiner/v2/processor"
+	uuid "github.com/google/uuid"
 	"github.com/gorilla/mux"
-	uuid "github.com/satori/go.uuid"
 )
 
 const (
@@ -44,6 +44,6 @@ func (handler *requestHandler) postMessage(writer http.ResponseWriter, request *
 }
 
 func isValidUUID(id string) bool {
-	_, err := uuid.FromString(id)
+	_, err := uuid.Parse(id)
 	return err == nil
 }
