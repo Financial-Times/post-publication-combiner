@@ -9,9 +9,10 @@ import (
 	"reflect"
 	"testing"
 
-	testLogger "github.com/Financial-Times/go-logger/test"
+	"github.com/Financial-Times/go-logger/v2"
 	"github.com/Financial-Times/message-queue-go-producer/producer"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
+	hooks "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,11 +22,15 @@ func TestProcessContentMsg_Unmarshal_Error(t *testing.T) {
 		Body:    `body`,
 	}
 
-	hook := testLogger.NewTestHook("combiner")
+	log := logger.NewUPPLogger("TEST", "INFO")
+	log.Out = ioutil.Discard
+	hook := hooks.NewLocal(log.Logger)
+
+	p := &MsgProcessor{log: log}
+
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
-	p := &MsgProcessor{}
 	p.processContentMsg(m)
 
 	assert.Equal(t, "error", hook.LastEntry().Level.String())
@@ -39,9 +44,13 @@ func TestProcessContentMsg_UnSupportedContent(t *testing.T) {
 
 	allowedUris := []string{"methode-article-mapper", "wordpress-article-mapper", "next-video-mapper", "upp-content-validator"}
 	config := MsgProcessorConfig{SupportedContentURIs: allowedUris}
-	p := &MsgProcessor{config: config}
 
-	hook := testLogger.NewTestHook("combiner")
+	log := logger.NewUPPLogger("TEST", "INFO")
+	log.Out = ioutil.Discard
+	hook := hooks.NewLocal(log.Logger)
+
+	p := &MsgProcessor{config: config, log: log}
+
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
@@ -58,9 +67,13 @@ func TestProcessContentMsg_SupportedContent_EmptyUUID(t *testing.T) {
 
 	allowedUris := []string{"methode-article-mapper", "wordpress-article-mapper", "next-video-mapper", "upp-content-validator"}
 	config := MsgProcessorConfig{SupportedContentURIs: allowedUris}
-	p := &MsgProcessor{config: config}
 
-	hook := testLogger.NewTestHook("combiner")
+	log := logger.NewUPPLogger("TEST", "INFO")
+	log.Out = ioutil.Discard
+	hook := hooks.NewLocal(log.Logger)
+
+	p := &MsgProcessor{config: config, log: log}
+
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
@@ -86,9 +99,13 @@ func TestProcessContentMsg_Combiner_Errors(t *testing.T) {
 		expectedContent: cm.ContentModel,
 		err:             errors.New("some error"),
 	}
-	p := &MsgProcessor{config: config, DataCombiner: dummyDataCombiner}
 
-	hook := testLogger.NewTestHook("dummyDataCombiner")
+	log := logger.NewUPPLogger("TEST", "INFO")
+	log.Out = ioutil.Discard
+	hook := hooks.NewLocal(log.Logger)
+
+	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, log: log}
+
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
@@ -121,9 +138,12 @@ func TestProcessContentMsg_Forwarder_Errors(t *testing.T) {
 	}
 	dummyMsgProducer := DummyMsgProducer{t: t, expError: errors.New("some dummyMsgProducer error")}
 
-	p := &MsgProcessor{config: config, DataCombiner: dummyDataCombiner, Forwarder: NewForwarder(dummyMsgProducer, allowedContentTypes)}
+	log := logger.NewUPPLogger("TEST", "INFO")
+	log.Out = ioutil.Discard
+	hook := hooks.NewLocal(log.Logger)
 
-	hook := testLogger.NewTestHook("dummyDataCombiner")
+	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: NewForwarder(log, dummyMsgProducer, allowedContentTypes), log: log}
+
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
@@ -168,9 +188,13 @@ func TestProcessContentMsg_Successfully_Forwarded(t *testing.T) {
 	}
 
 	dummyMsgProducer := DummyMsgProducer{t: t, expUUID: dummyDataCombiner.data.UUID, expMsg: expMsg}
-	p := &MsgProcessor{config: config, DataCombiner: dummyDataCombiner, Forwarder: NewForwarder(dummyMsgProducer, allowedContentTypes)}
 
-	hook := testLogger.NewTestHook("dummyDataCombiner")
+	log := logger.NewUPPLogger("TEST", "INFO")
+	log.Out = ioutil.Discard
+	hook := hooks.NewLocal(log.Logger)
+
+	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: NewForwarder(log, dummyMsgProducer, allowedContentTypes), log: log}
+
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
@@ -203,9 +227,13 @@ func TestProcessContentMsg_DeleteEvent_Successfully_Forwarded(t *testing.T) {
 	}
 
 	dummyMsgProducer := DummyMsgProducer{t: t, expUUID: dummyDataCombiner.data.UUID, expMsg: expMsg}
-	p := MsgProcessor{config: config, DataCombiner: dummyDataCombiner, Forwarder: NewForwarder(dummyMsgProducer, allowedContentTypes)}
 
-	hook := testLogger.NewTestHook("dummyDataCombiner")
+	log := logger.NewUPPLogger("TEST", "INFO")
+	log.Out = ioutil.Discard
+	hook := hooks.NewLocal(log.Logger)
+
+	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: NewForwarder(log, dummyMsgProducer, allowedContentTypes), log: log}
+
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
@@ -222,9 +250,13 @@ func TestProcessMetadataMsg_UnSupportedOrigins(t *testing.T) {
 
 	allowedOrigins := []string{"http://cmdb.ft.com/systems/binding-service", "http://cmdb.ft.com/systems/methode-web-pub"}
 	config := MsgProcessorConfig{SupportedHeaders: allowedOrigins}
-	p := &MsgProcessor{config: config}
 
-	hook := testLogger.NewTestHook("combiner")
+	log := logger.NewUPPLogger("TEST", "INFO")
+	log.Out = ioutil.Discard
+	hook := hooks.NewLocal(log.Logger)
+
+	p := &MsgProcessor{config: config, log: log}
+
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
@@ -243,9 +275,13 @@ func TestProcessMetadataMsg_SupportedOrigin_Unmarshal_Error(t *testing.T) {
 
 	allowedOrigins := []string{"http://cmdb.ft.com/systems/binding-service", "http://cmdb.ft.com/systems/methode-web-pub"}
 	config := MsgProcessorConfig{SupportedHeaders: allowedOrigins}
-	p := &MsgProcessor{config: config}
 
-	hook := testLogger.NewTestHook("combiner")
+	log := logger.NewUPPLogger("TEST", "INFO")
+	log.Out = ioutil.Discard
+	hook := hooks.NewLocal(log.Logger)
+
+	p := &MsgProcessor{config: config, log: log}
+
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
@@ -272,9 +308,13 @@ func TestProcessMetadataMsg_Combiner_Errors(t *testing.T) {
 		expectedMetadata: *am,
 		err:              errors.New("some error"),
 	}
-	p := &MsgProcessor{config: config, DataCombiner: dummyDataCombiner}
 
-	hook := testLogger.NewTestHook("dummyDataCombiner")
+	log := logger.NewUPPLogger("TEST", "INFO")
+	log.Out = ioutil.Discard
+	hook := hooks.NewLocal(log.Logger)
+
+	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, log: log}
+
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
@@ -302,9 +342,12 @@ func TestProcessMetadataMsg_Forwarder_Errors(t *testing.T) {
 	}}
 	dummyMsgProducer := DummyMsgProducer{t: t, expError: errors.New("some dummyMsgProducer error")}
 
-	p := &MsgProcessor{config: config, DataCombiner: dummyDataCombiner, Forwarder: NewForwarder(dummyMsgProducer, allowedContentTypes)}
+	log := logger.NewUPPLogger("TEST", "INFO")
+	log.Out = ioutil.Discard
+	hook := hooks.NewLocal(log.Logger)
 
-	hook := testLogger.NewTestHook("dummyDataCombiner")
+	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: NewForwarder(log, dummyMsgProducer, allowedContentTypes), log: log}
+
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
@@ -330,9 +373,12 @@ func TestProcessMetadataMsg_Forward_Skipped(t *testing.T) {
 	// The producer should return an error so that the test won't pass if the message forward is attempted
 	dummyMsgProducer := DummyMsgProducer{t: t, expError: errors.New("some dummyMsgProducer error")}
 
-	p := &MsgProcessor{config: config, DataCombiner: dummyDataCombiner, Forwarder: NewForwarder(dummyMsgProducer, allowedContentTypes)}
+	log := logger.NewUPPLogger("TEST", "INFO")
+	log.Out = ioutil.Discard
+	hook := hooks.NewLocal(log.Logger)
 
-	hook := testLogger.NewTestHook("dummyDataCombiner")
+	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: NewForwarder(log, dummyMsgProducer, allowedContentTypes), log: log}
+
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
@@ -385,9 +431,13 @@ func TestProcessMetadataMsg_Successfully_Forwarded(t *testing.T) {
 	}
 
 	dummyMsgProducer := DummyMsgProducer{t: t, expUUID: dummyDataCombiner.data.UUID, expMsg: expMsg}
-	p := &MsgProcessor{config: config, DataCombiner: dummyDataCombiner, Forwarder: NewForwarder(dummyMsgProducer, allowedContentTypes)}
 
-	hook := testLogger.NewTestHook("dummyDataCombiner")
+	log := logger.NewUPPLogger("TEST", "INFO")
+	log.Out = ioutil.Discard
+	hook := hooks.NewLocal(log.Logger)
+
+	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: NewForwarder(log, dummyMsgProducer, allowedContentTypes), log: log}
+
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
 
@@ -430,8 +480,8 @@ func TestForwardMsg(t *testing.T) {
 		assert.Nil(t, err)
 
 		q := MsgProcessor{
-			Forwarder: Forwarder{
-				MsgProducer: DummyMsgProducer{
+			forwarder: Forwarder{
+				msgProducer: DummyMsgProducer{
 					t:        t,
 					expUUID:  testCase.uuid,
 					expError: testCase.err,
@@ -443,13 +493,17 @@ func TestForwardMsg(t *testing.T) {
 			},
 		}
 
-		err = q.Forwarder.forwardMsg(testCase.headers, &model)
+		err = q.forwarder.forwardMsg(testCase.headers, &model)
 		assert.Equal(t, testCase.err, err)
 	}
 }
 
 func TestExtractTID(t *testing.T) {
 	assertion := assert.New(t)
+
+	log := logger.NewUPPLogger("TEST", "PANIC")
+	p := &MsgProcessor{log: log}
+
 	tests := []struct {
 		headers     map[string]string
 		expectedTID string
@@ -470,18 +524,22 @@ func TestExtractTID(t *testing.T) {
 	}
 
 	for _, testCase := range tests {
-		actualTID := extractTID(testCase.headers)
+		actualTID := p.extractTID(testCase.headers)
 		assertion.Equal(testCase.expectedTID, actualTID)
 	}
 }
 
 func TestExtractTIDForEmptyHeader(t *testing.T) {
 	assertion := assert.New(t)
+
+	log := logger.NewUPPLogger("TEST", "PANIC")
+	p := &MsgProcessor{log: log}
+
 	headers := map[string]string{
 		"Some-Other-Header": "some-value",
 	}
 
-	actualTID := extractTID(headers)
+	actualTID := p.extractTID(headers)
 	assertion.NotEmpty(actualTID)
 	assertion.Contains(actualTID, "tid_")
 	assertion.Contains(actualTID, "_post_publication_combiner")

@@ -2,7 +2,7 @@ package main
 
 import (
 	health "github.com/Financial-Times/go-fthealth/v1_1"
-	"github.com/Financial-Times/go-logger"
+	"github.com/Financial-Times/go-logger/v2"
 	"github.com/Financial-Times/message-queue-go-producer/producer"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"github.com/Financial-Times/post-publication-combiner/v2/utils"
@@ -16,15 +16,17 @@ const (
 
 type HealthcheckHandler struct {
 	httpClient                utils.Client
+	log                       *logger.UPPLogger
 	producer                  producer.MessageProducer
 	consumer                  consumer.MessageConsumer
 	docStoreAPIBaseURL        string
 	internalContentAPIBaseURL string
 }
 
-func NewCombinerHealthcheck(p producer.MessageProducer, c consumer.MessageConsumer, client utils.Client, docStoreAPIURL string, internalContentAPIURL string) *HealthcheckHandler {
+func NewCombinerHealthcheck(log *logger.UPPLogger, p producer.MessageProducer, c consumer.MessageConsumer, client utils.Client, docStoreAPIURL string, internalContentAPIURL string) *HealthcheckHandler {
 	return &HealthcheckHandler{
 		httpClient:                client,
+		log:                       log,
 		producer:                  p,
 		consumer:                  c,
 		docStoreAPIBaseURL:        docStoreAPIURL,
@@ -108,7 +110,7 @@ func gtgCheck(handler func() (string, error)) gtg.Status {
 func (h *HealthcheckHandler) checkIfDocumentStoreIsReachable() (string, error) {
 	_, _, err := utils.ExecuteSimpleHTTPRequest(h.docStoreAPIBaseURL+GTGEndpoint, h.httpClient)
 	if err != nil {
-		logger.WithError(err).Errorf("Healthcheck error: %v", err.Error())
+		h.log.WithError(err).Error("Healthcheck error")
 		return "", err
 	}
 	return ResponseOK, nil
@@ -117,7 +119,7 @@ func (h *HealthcheckHandler) checkIfDocumentStoreIsReachable() (string, error) {
 func (h *HealthcheckHandler) checkIfInternalContentAPIIsReachable() (string, error) {
 	_, _, err := utils.ExecuteSimpleHTTPRequest(h.internalContentAPIBaseURL+GTGEndpoint, h.httpClient)
 	if err != nil {
-		logger.WithError(err).Errorf("Healthcheck error: %v", err.Error())
+		h.log.WithError(err).Error("Healthcheck error")
 		return "", err
 	}
 	return ResponseOK, nil

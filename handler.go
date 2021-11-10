@@ -3,9 +3,9 @@ package main
 import (
 	"net/http"
 
-	"github.com/Financial-Times/go-logger"
+	"github.com/Financial-Times/go-logger/v2"
 	"github.com/Financial-Times/post-publication-combiner/v2/processor"
-	uuid "github.com/google/uuid"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
@@ -15,6 +15,7 @@ const (
 
 type requestHandler struct {
 	requestProcessor processor.RequestProcessorI
+	log              *logger.UPPLogger
 }
 
 func (handler *requestHandler) postMessage(writer http.ResponseWriter, request *http.Request) {
@@ -24,7 +25,7 @@ func (handler *requestHandler) postMessage(writer http.ResponseWriter, request *
 	defer request.Body.Close()
 
 	if !isValidUUID(uuid) {
-		logger.WithTransactionID(transactionID).Errorf("Invalid UUID %s", uuid)
+		handler.log.WithTransactionID(transactionID).Errorf("Invalid UUID %s", uuid)
 		writer.WriteHeader(http.StatusBadRequest)
 		return
 	}

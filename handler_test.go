@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Financial-Times/go-logger/v2"
 	"github.com/Financial-Times/post-publication-combiner/v2/processor"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
@@ -30,7 +31,7 @@ func TestPostMessage(t *testing.T) {
 
 	dummyRequestProcessor := &DummyRequestProcessor{t: t}
 
-	rh := requestHandler{requestProcessor: dummyRequestProcessor}
+	rh := requestHandler{requestProcessor: dummyRequestProcessor, log: logger.NewUPPLogger("TEST", "PANIC")}
 	servicesRouter := mux.NewRouter()
 	servicesRouter.HandleFunc("/{id}", rh.postMessage).Methods("POST")
 

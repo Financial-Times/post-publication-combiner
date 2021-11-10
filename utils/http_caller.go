@@ -2,7 +2,6 @@ package utils
 
 import (
 	"fmt"
-	"github.com/Financial-Times/go-logger"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -19,7 +18,6 @@ type Client interface {
 }
 
 func ExecuteHTTPRequest(uuid string, apiUrl ApiURL, httpClient Client) (b []byte, status int, err error) {
-
 	urlStr := apiUrl.BaseURL + apiUrl.Endpoint
 
 	if uuid != "" {
@@ -45,7 +43,10 @@ func executeHTTPRequest(urlStr string, httpClient Client) (b []byte, status int,
 		return nil, -1, fmt.Errorf("Error executing requests for url=%s, error=%v", urlStr, err)
 	}
 
-	defer cleanUp(resp)
+	defer func() {
+		_, _ = io.Copy(ioutil.Discard, resp.Body)
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, resp.StatusCode, fmt.Errorf("Connecting to %s was not successful. Status: %d", urlStr, resp.StatusCode)
@@ -57,17 +58,4 @@ func executeHTTPRequest(urlStr string, httpClient Client) (b []byte, status int,
 	}
 
 	return b, http.StatusOK, err
-}
-
-func cleanUp(resp *http.Response) {
-
-	_, err := io.Copy(ioutil.Discard, resp.Body)
-	if err != nil {
-		logger.Warningf("[%v]", err)
-	}
-
-	err = resp.Body.Close()
-	if err != nil {
-		logger.Warningf("[%v]", err)
-	}
 }
