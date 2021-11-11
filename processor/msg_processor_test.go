@@ -2,7 +2,6 @@ package processor
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -16,16 +15,20 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func testLogger() (*logger.UPPLogger, *hooks.Hook) {
+	log := logger.NewUPPLogger("TEST", "INFO")
+	log.Out = ioutil.Discard
+	hook := hooks.NewLocal(log.Logger)
+	return log, hook
+}
+
 func TestProcessContentMsg_Unmarshal_Error(t *testing.T) {
 	m := consumer.Message{
 		Headers: map[string]string{"X-Request-Id": "some-tid1"},
 		Body:    `body`,
 	}
 
-	log := logger.NewUPPLogger("TEST", "INFO")
-	log.Out = ioutil.Discard
-	hook := hooks.NewLocal(log.Logger)
-
+	log, hook := testLogger()
 	p := &MsgProcessor{log: log}
 
 	assert.Nil(t, hook.LastEntry())
@@ -45,10 +48,7 @@ func TestProcessContentMsg_UnSupportedContent(t *testing.T) {
 	allowedUris := []string{"methode-article-mapper", "wordpress-article-mapper", "next-video-mapper", "upp-content-validator"}
 	config := MsgProcessorConfig{SupportedContentURIs: allowedUris}
 
-	log := logger.NewUPPLogger("TEST", "INFO")
-	log.Out = ioutil.Discard
-	hook := hooks.NewLocal(log.Logger)
-
+	log, hook := testLogger()
 	p := &MsgProcessor{config: config, log: log}
 
 	assert.Nil(t, hook.LastEntry())
@@ -68,10 +68,7 @@ func TestProcessContentMsg_SupportedContent_EmptyUUID(t *testing.T) {
 	allowedUris := []string{"methode-article-mapper", "wordpress-article-mapper", "next-video-mapper", "upp-content-validator"}
 	config := MsgProcessorConfig{SupportedContentURIs: allowedUris}
 
-	log := logger.NewUPPLogger("TEST", "INFO")
-	log.Out = ioutil.Discard
-	hook := hooks.NewLocal(log.Logger)
-
+	log, hook := testLogger()
 	p := &MsgProcessor{config: config, log: log}
 
 	assert.Nil(t, hook.LastEntry())
@@ -97,13 +94,10 @@ func TestProcessContentMsg_Combiner_Errors(t *testing.T) {
 	dummyDataCombiner := DummyDataCombiner{
 		t:               t,
 		expectedContent: cm.ContentModel,
-		err:             errors.New("some error"),
+		err:             fmt.Errorf("some error"),
 	}
 
-	log := logger.NewUPPLogger("TEST", "INFO")
-	log.Out = ioutil.Discard
-	hook := hooks.NewLocal(log.Logger)
-
+	log, hook := testLogger()
 	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, log: log}
 
 	assert.Nil(t, hook.LastEntry())
@@ -136,12 +130,9 @@ func TestProcessContentMsg_Forwarder_Errors(t *testing.T) {
 			Content: cm.ContentModel,
 		},
 	}
-	dummyMsgProducer := DummyMsgProducer{t: t, expError: errors.New("some dummyMsgProducer error")}
+	dummyMsgProducer := DummyMsgProducer{t: t, expError: fmt.Errorf("some dummyMsgProducer error")}
 
-	log := logger.NewUPPLogger("TEST", "INFO")
-	log.Out = ioutil.Discard
-	hook := hooks.NewLocal(log.Logger)
-
+	log, hook := testLogger()
 	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: NewForwarder(log, dummyMsgProducer, allowedContentTypes), log: log}
 
 	assert.Nil(t, hook.LastEntry())
@@ -189,10 +180,7 @@ func TestProcessContentMsg_Successfully_Forwarded(t *testing.T) {
 
 	dummyMsgProducer := DummyMsgProducer{t: t, expUUID: dummyDataCombiner.data.UUID, expMsg: expMsg}
 
-	log := logger.NewUPPLogger("TEST", "INFO")
-	log.Out = ioutil.Discard
-	hook := hooks.NewLocal(log.Logger)
-
+	log, hook := testLogger()
 	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: NewForwarder(log, dummyMsgProducer, allowedContentTypes), log: log}
 
 	assert.Nil(t, hook.LastEntry())
@@ -228,10 +216,7 @@ func TestProcessContentMsg_DeleteEvent_Successfully_Forwarded(t *testing.T) {
 
 	dummyMsgProducer := DummyMsgProducer{t: t, expUUID: dummyDataCombiner.data.UUID, expMsg: expMsg}
 
-	log := logger.NewUPPLogger("TEST", "INFO")
-	log.Out = ioutil.Discard
-	hook := hooks.NewLocal(log.Logger)
-
+	log, hook := testLogger()
 	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: NewForwarder(log, dummyMsgProducer, allowedContentTypes), log: log}
 
 	assert.Nil(t, hook.LastEntry())
@@ -251,10 +236,7 @@ func TestProcessMetadataMsg_UnSupportedOrigins(t *testing.T) {
 	allowedOrigins := []string{"http://cmdb.ft.com/systems/binding-service", "http://cmdb.ft.com/systems/methode-web-pub"}
 	config := MsgProcessorConfig{SupportedHeaders: allowedOrigins}
 
-	log := logger.NewUPPLogger("TEST", "INFO")
-	log.Out = ioutil.Discard
-	hook := hooks.NewLocal(log.Logger)
-
+	log, hook := testLogger()
 	p := &MsgProcessor{config: config, log: log}
 
 	assert.Nil(t, hook.LastEntry())
@@ -276,10 +258,7 @@ func TestProcessMetadataMsg_SupportedOrigin_Unmarshal_Error(t *testing.T) {
 	allowedOrigins := []string{"http://cmdb.ft.com/systems/binding-service", "http://cmdb.ft.com/systems/methode-web-pub"}
 	config := MsgProcessorConfig{SupportedHeaders: allowedOrigins}
 
-	log := logger.NewUPPLogger("TEST", "INFO")
-	log.Out = ioutil.Discard
-	hook := hooks.NewLocal(log.Logger)
-
+	log, hook := testLogger()
 	p := &MsgProcessor{config: config, log: log}
 
 	assert.Nil(t, hook.LastEntry())
@@ -306,13 +285,10 @@ func TestProcessMetadataMsg_Combiner_Errors(t *testing.T) {
 	dummyDataCombiner := DummyDataCombiner{
 		t:                t,
 		expectedMetadata: *am,
-		err:              errors.New("some error"),
+		err:              fmt.Errorf("some error"),
 	}
 
-	log := logger.NewUPPLogger("TEST", "INFO")
-	log.Out = ioutil.Discard
-	hook := hooks.NewLocal(log.Logger)
-
+	log, hook := testLogger()
 	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, log: log}
 
 	assert.Nil(t, hook.LastEntry())
@@ -340,12 +316,9 @@ func TestProcessMetadataMsg_Forwarder_Errors(t *testing.T) {
 		UUID:    "some_uuid",
 		Content: ContentModel{"uuid": "some_uuid", "title": "simple title", "type": "Article"},
 	}}
-	dummyMsgProducer := DummyMsgProducer{t: t, expError: errors.New("some dummyMsgProducer error")}
+	dummyMsgProducer := DummyMsgProducer{t: t, expError: fmt.Errorf("some dummyMsgProducer error")}
 
-	log := logger.NewUPPLogger("TEST", "INFO")
-	log.Out = ioutil.Discard
-	hook := hooks.NewLocal(log.Logger)
-
+	log, hook := testLogger()
 	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: NewForwarder(log, dummyMsgProducer, allowedContentTypes), log: log}
 
 	assert.Nil(t, hook.LastEntry())
@@ -371,12 +344,9 @@ func TestProcessMetadataMsg_Forward_Skipped(t *testing.T) {
 	config := MsgProcessorConfig{SupportedHeaders: allowedOrigins}
 	dummyDataCombiner := DummyDataCombiner{t: t, expectedMetadata: *am, data: CombinedModel{UUID: "some_uuid"}}
 	// The producer should return an error so that the test won't pass if the message forward is attempted
-	dummyMsgProducer := DummyMsgProducer{t: t, expError: errors.New("some dummyMsgProducer error")}
+	dummyMsgProducer := DummyMsgProducer{t: t, expError: fmt.Errorf("some dummyMsgProducer error")}
 
-	log := logger.NewUPPLogger("TEST", "INFO")
-	log.Out = ioutil.Discard
-	hook := hooks.NewLocal(log.Logger)
-
+	log, hook := testLogger()
 	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: NewForwarder(log, dummyMsgProducer, allowedContentTypes), log: log}
 
 	assert.Nil(t, hook.LastEntry())
@@ -432,10 +402,7 @@ func TestProcessMetadataMsg_Successfully_Forwarded(t *testing.T) {
 
 	dummyMsgProducer := DummyMsgProducer{t: t, expUUID: dummyDataCombiner.data.UUID, expMsg: expMsg}
 
-	log := logger.NewUPPLogger("TEST", "INFO")
-	log.Out = ioutil.Discard
-	hook := hooks.NewLocal(log.Logger)
-
+	log, hook := testLogger()
 	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: NewForwarder(log, dummyMsgProducer, allowedContentTypes), log: log}
 
 	assert.Nil(t, hook.LastEntry())
@@ -501,7 +468,7 @@ func TestForwardMsg(t *testing.T) {
 func TestExtractTID(t *testing.T) {
 	assertion := assert.New(t)
 
-	log := logger.NewUPPLogger("TEST", "PANIC")
+	log, _ := testLogger()
 	p := &MsgProcessor{log: log}
 
 	tests := []struct {
@@ -532,7 +499,7 @@ func TestExtractTID(t *testing.T) {
 func TestExtractTIDForEmptyHeader(t *testing.T) {
 	assertion := assert.New(t)
 
-	log := logger.NewUPPLogger("TEST", "PANIC")
+	log, _ := testLogger()
 	p := &MsgProcessor{log: log}
 
 	headers := map[string]string{
