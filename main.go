@@ -10,19 +10,17 @@ import (
 	"time"
 
 	health "github.com/Financial-Times/go-fthealth/v1_1"
-	"github.com/Financial-Times/go-logger"
-	"github.com/Financial-Times/http-handlers-go/httphandlers"
+	"github.com/Financial-Times/go-logger/v2"
+	"github.com/Financial-Times/http-handlers-go/v2/httphandlers"
 	"github.com/Financial-Times/message-queue-go-producer/producer"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
+	"github.com/Financial-Times/post-publication-combiner/v2/processor"
+	"github.com/Financial-Times/post-publication-combiner/v2/utils"
 	status "github.com/Financial-Times/service-status-go/httphandlers"
-
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	cli "github.com/jawher/mow.cli"
 	"github.com/rcrowley/go-metrics"
-
-	"github.com/Financial-Times/post-publication-combiner/v2/processor"
-	"github.com/Financial-Times/post-publication-combiner/v2/utils"
 )
 
 const serviceName = "post-publication-combiner"
@@ -30,6 +28,12 @@ const serviceName = "post-publication-combiner"
 func main() {
 	app := cli.App(serviceName, "Service listening to content and metadata PostPublication events, and forwards a combined message to the queue")
 
+	logLevel := app.String(cli.StringOpt{
+		Name:   "logLevel",
+		Value:  "INFO",
+		Desc:   "Logging level (DEBUG, INFO, WARN, ERROR)",
+		EnvVar: "LOG_LEVEL",
+	})
 	port := app.String(cli.StringOpt{
 		Name:   "port",
 		Value:  "8080",
@@ -136,7 +140,7 @@ func main() {
 		EnvVar: "WHITELISTED_CONTENT_TYPES",
 	})
 
-	logger.InitDefaultLogger(serviceName)
+	log := logger.NewUPPLogger(serviceName, *logLevel)
 
 	app.Action = func() {
 		client := http.Client{
@@ -184,41 +188,35 @@ func main() {
 
 		pQConf := processor.NewProducerConfig(*kafkaProxyAddress, *combinedTopic, *kafkaProxyRoutingHeader)
 		msgProducer := producer.NewMessageProducerWithHTTPClient(pQConf, &client)
-		processorConf := processor.NewMsgProcessorConfig(
-			*whitelistedContentUris,
-			*whitelistedMetadataOriginSystemHeaders,
-			*contentTopic,
-			*metadataTopic,
-		)
-		msgProcessor := processor.NewMsgProcessor(
-			messagesCh,
-			processorConf,
-			dataCombiner,
-			msgProducer,
-			*whitelistedContentTypes)
+		processorConf := processor.NewMsgProcessorConfig(*whitelistedContentUris, *whitelistedMetadataOriginSystemHeaders, *contentTopic, *metadataTopic)
+		msgProcessor := processor.NewMsgProcessor(log, messagesCh, processorConf, dataCombiner, msgProducer, *whitelistedContentTypes)
 		go msgProcessor.ProcessMessages()
 
 		// process requested messages - used for re-indexing and forced requests
 		forcedPQConf := processor.NewProducerConfig(*kafkaProxyAddress, *forcedCombinedTopic, *kafkaProxyRoutingHeader)
 		forcedMsgProducer := producer.NewMessageProducerWithHTTPClient(forcedPQConf, &client)
-		requestProcessor := processor.NewRequestProcessor(
-			dataCombiner,
-			forcedMsgProducer,
-			*whitelistedContentTypes)
+		requestProcessor := processor.NewRequestProcessor(log, dataCombiner, forcedMsgProducer, *whitelistedContentTypes)
+
+		reqHandler := &requestHandler{
+			requestProcessor: requestProcessor,
+			log:              log,
+		}
 
 		// Since the health check for all producers and consumers just checks /topics for a response, we pick a producer and a consumer at random
-		routeRequests(port, &requestHandler{requestProcessor: requestProcessor}, NewCombinerHealthcheck(msgProducer, mc.Consumer, &client, *docStoreAPIBaseURL, *internalContentAPIBaseURL))
+		healthcheckHandler := NewCombinerHealthcheck(log, msgProducer, mc.Consumer, &client, *docStoreAPIBaseURL, *internalContentAPIBaseURL)
+
+		routeRequests(log, port, reqHandler, healthcheckHandler)
 	}
 
-	logger.Infof("PostPublicationCombiner is starting with args %v", os.Args)
+	log.Infof("PostPublicationCombiner is starting with args %v", os.Args)
 
 	err := app.Run(os.Args)
 	if err != nil {
-		logger.WithError(err).Error("App could not start")
+		log.WithError(err).Error("App could not start")
 	}
 }
 
-func routeRequests(port *string, requestHandler *requestHandler, healthService *HealthcheckHandler) {
+func routeRequests(log *logger.UPPLogger, port *string, requestHandler *requestHandler, healthService *HealthcheckHandler) {
 	r := http.NewServeMux()
 
 	r.HandleFunc(status.BuildInfoPath, status.BuildInfoHandler)
@@ -248,7 +246,7 @@ func routeRequests(port *string, requestHandler *requestHandler, healthService *
 	servicesRouter.HandleFunc("/{id}", requestHandler.postMessage).Methods("POST")
 
 	var monitoringRouter http.Handler = servicesRouter
-	monitoringRouter = httphandlers.TransactionAwareRequestLoggingHandler(logger.Logger(), monitoringRouter)
+	monitoringRouter = httphandlers.TransactionAwareRequestLoggingHandler(log, monitoringRouter)
 	monitoringRouter = httphandlers.HTTPMetricsHandler(metrics.DefaultRegistry, monitoringRouter)
 
 	r.Handle("/", monitoringRouter)
@@ -260,16 +258,16 @@ func routeRequests(port *string, requestHandler *requestHandler, healthService *
 	wg.Add(1)
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			logger.Infof("HTTP server closing with message: %v", err)
+			log.Infof("HTTP server closing with message: %v", err)
 		}
 		wg.Done()
 	}()
 
 	waitForSignal()
-	logger.Infof("[Shutdown] PostPublicationCombiner is shutting down")
+	log.Infof("[Shutdown] PostPublicationCombiner is shutting down")
 
 	if err := server.Close(); err != nil {
-		logger.WithError(err).Error("Unable to stop http server")
+		log.WithError(err).Error("Unable to stop http server")
 	}
 
 	wg.Wait()

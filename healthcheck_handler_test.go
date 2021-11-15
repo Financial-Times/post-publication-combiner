@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/Financial-Times/go-fthealth/v1_1"
+	"github.com/Financial-Times/go-logger/v2"
 	"github.com/Financial-Times/message-queue-go-producer/producer"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"github.com/stretchr/testify/assert"
@@ -28,6 +29,7 @@ func TestCheckIfDocumentStoreIsReachable_Errors(t *testing.T) {
 	h := HealthcheckHandler{
 		docStoreAPIBaseURL: "doc-store-base-url",
 		httpClient:         &dc,
+		log:                logger.NewUPPLogger("TEST", "PANIC"),
 	}
 
 	resp, err := h.checkIfDocumentStoreIsReachable()
@@ -43,6 +45,7 @@ func TestCheckIfDocumentStoreIsReachable_Succeeds(t *testing.T) {
 	h := HealthcheckHandler{
 		docStoreAPIBaseURL: "doc-store-base-url",
 		httpClient:         &dc,
+		log:                logger.NewUPPLogger("TEST", "PANIC"),
 	}
 
 	resp, err := h.checkIfDocumentStoreIsReachable()
@@ -58,6 +61,7 @@ func TestCheckIfInternalContentAPIIsReachable_Errors(t *testing.T) {
 	h := HealthcheckHandler{
 		internalContentAPIBaseURL: "internal-content-api-base-url",
 		httpClient:                &dc,
+		log:                       logger.NewUPPLogger("TEST", "PANIC"),
 	}
 
 	resp, err := h.checkIfInternalContentAPIIsReachable()
@@ -73,6 +77,7 @@ func TestCheckIfInternalContentAPIIsReachable_Succeeds(t *testing.T) {
 	h := HealthcheckHandler{
 		internalContentAPIBaseURL: "internal-content-api-base-url",
 		httpClient:                &dc,
+		log:                       logger.NewUPPLogger("TEST", "PANIC"),
 	}
 
 	resp, err := h.checkIfInternalContentAPIIsReachable()
@@ -187,12 +192,13 @@ func TestGTG_Bad(t *testing.T) {
 		},
 	}
 
+	log := logger.NewUPPLogger("TEST", "PANIC")
+
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
 			server := getMockedServer(tc.docStoreAPIStatus, tc.internalContentAPIStatus)
 			defer server.Close()
-			h := NewCombinerHealthcheck(tc.producer, tc.consumer, http.DefaultClient, server.URL+DocStoreAPIPath,
-				server.URL+InternalContentAPIPath)
+			h := NewCombinerHealthcheck(log, tc.producer, tc.consumer, http.DefaultClient, server.URL+DocStoreAPIPath, server.URL+InternalContentAPIPath)
 
 			status := h.GTG()
 			assert.False(t, status.GoodToGo)

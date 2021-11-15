@@ -3,7 +3,7 @@ package processor
 import (
 	"encoding/json"
 
-	"github.com/Financial-Times/go-logger"
+	"github.com/Financial-Times/go-logger/v2"
 	"github.com/Financial-Times/message-queue-go-producer/producer"
 )
 
@@ -12,14 +12,16 @@ const (
 )
 
 type Forwarder struct {
-	MsgProducer           producer.MessageProducer
-	SupportedContentTypes []string
+	msgProducer           producer.MessageProducer
+	supportedContentTypes []string
+	log                   *logger.UPPLogger
 }
 
-func NewForwarder(msgProducer producer.MessageProducer, supportedContentTypes []string) Forwarder {
+func NewForwarder(log *logger.UPPLogger, msgProducer producer.MessageProducer, supportedContentTypes []string) Forwarder {
 	return Forwarder{
-		MsgProducer:           msgProducer,
-		SupportedContentTypes: supportedContentTypes,
+		msgProducer:           msgProducer,
+		supportedContentTypes: supportedContentTypes,
+		log:                   log,
 	}
 }
 
@@ -32,19 +34,18 @@ func NewProducerConfig(proxyAddress string, topic string, routingHeader string) 
 }
 
 func (p *Forwarder) filterAndForwardMsg(headers map[string]string, combinedMSG *CombinedModel, tid string) error {
-
-	if combinedMSG.Content != nil && !isTypeAllowed(p.SupportedContentTypes, combinedMSG.Content.getType()) {
-		logger.WithTransactionID(tid).WithUUID(combinedMSG.UUID).Infof("%v - Skipped unsupported content with type: %v", tid, combinedMSG.Content.getType())
+	if combinedMSG.Content != nil && !isTypeAllowed(p.supportedContentTypes, combinedMSG.Content.getType()) {
+		p.log.WithTransactionID(tid).WithUUID(combinedMSG.UUID).Infof("%v - Skipped unsupported content with type: %v", tid, combinedMSG.Content.getType())
 		return InvalidContentTypeError
 	}
 
 	//forward data
 	err := p.forwardMsg(headers, combinedMSG)
 	if err != nil {
-		logger.WithTransactionID(tid).WithError(err).Errorf("%v - Error sending transformed message to queue.", tid)
+		p.log.WithTransactionID(tid).WithError(err).Errorf("%v - Error sending transformed message to queue.", tid)
 		return err
 	}
-	logger.WithTransactionID(tid).Infof("%v - Mapped and sent for uuid: %v", tid, combinedMSG.UUID)
+	p.log.WithTransactionID(tid).Infof("%v - Mapped and sent for uuid: %v", tid, combinedMSG.UUID)
 	return nil
 }
 
@@ -60,7 +61,7 @@ func (p *Forwarder) forwardMsg(headers map[string]string, model *CombinedModel) 
 	}
 	// add special message type
 	headers["Message-Type"] = CombinerMessageType
-	return p.MsgProducer.SendMessage(model.UUID, producer.Message{Headers: headers, Body: string(b)})
+	return p.msgProducer.SendMessage(model.UUID, producer.Message{Headers: headers, Body: string(b)})
 }
 
 func contains(array []string, element string) bool {
