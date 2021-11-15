@@ -28,12 +28,6 @@ fixtures:
   /base_uri:
     delete:
       status: 200
-  /topics/CombinedPostPublicationEvents:
-    post:
-      status: 200
-  /topics/ForcedCombinedPostPublicationEvents:
-    post:
-      status: 200
   /base_uri/offsets:
     post:
       status: 200

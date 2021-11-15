@@ -3,7 +3,6 @@ package main
 import (
 	health "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/go-logger/v2"
-	"github.com/Financial-Times/message-queue-go-producer/producer"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"github.com/Financial-Times/post-publication-combiner/v2/utils"
 	"github.com/Financial-Times/service-status-go/gtg"
@@ -14,16 +13,20 @@ const (
 	ResponseOK  = "OK"
 )
 
+type messageProducer interface {
+	ConnectivityCheck() error
+}
+
 type HealthcheckHandler struct {
 	httpClient                utils.Client
 	log                       *logger.UPPLogger
-	producer                  producer.MessageProducer
+	producer                  messageProducer
 	consumer                  consumer.MessageConsumer
 	docStoreAPIBaseURL        string
 	internalContentAPIBaseURL string
 }
 
-func NewCombinerHealthcheck(log *logger.UPPLogger, p producer.MessageProducer, c consumer.MessageConsumer, client utils.Client, docStoreAPIURL string, internalContentAPIURL string) *HealthcheckHandler {
+func NewCombinerHealthcheck(log *logger.UPPLogger, p messageProducer, c consumer.MessageConsumer, client utils.Client, docStoreAPIURL string, internalContentAPIURL string) *HealthcheckHandler {
 	return &HealthcheckHandler{
 		httpClient:                client,
 		log:                       log,
@@ -34,14 +37,14 @@ func NewCombinerHealthcheck(log *logger.UPPLogger, p producer.MessageProducer, c
 	}
 }
 
-func checkKafkaProxyProducerConnectivity(h *HealthcheckHandler) health.Check {
+func checkKafkaProducerConnectivity(h *HealthcheckHandler) health.Check {
 	return health.Check{
 		BusinessImpact:   "Can't write CombinedPostPublicationEvents and ForcedCombinedPostPublicationEvents messages to queue. Indexing for search won't work.",
-		Name:             "Check connectivity to the kafka-proxy",
+		Name:             "Check connectivity to Kafka",
 		PanicGuide:       "https://runbooks.in.ft.com/post-publication-combiner",
 		Severity:         2,
-		TechnicalSummary: "CombinedPostPublicationEvents and ForcedCombinedPostPublicationEvents messages can't be forwarded to the queue. Check if kafka-proxy is reachable.",
-		Checker:          h.producer.ConnectivityCheck,
+		TechnicalSummary: "CombinedPostPublicationEvents and ForcedCombinedPostPublicationEvents messages can't be forwarded to the queue. Check if Kafka is reachable.",
+		Checker:          h.checkIfKafkaIsReachable,
 	}
 }
 
@@ -83,7 +86,7 @@ func (h *HealthcheckHandler) GTG() gtg.Status {
 		return gtgCheck(h.consumer.ConnectivityCheck)
 	}
 	producerCheck := func() gtg.Status {
-		return gtgCheck(h.producer.ConnectivityCheck)
+		return gtgCheck(h.checkIfKafkaIsReachable)
 	}
 	docStoreCheck := func() gtg.Status {
 		return gtgCheck(h.checkIfDocumentStoreIsReachable)
@@ -123,4 +126,12 @@ func (h *HealthcheckHandler) checkIfInternalContentAPIIsReachable() (string, err
 		return "", err
 	}
 	return ResponseOK, nil
+}
+
+func (h *HealthcheckHandler) checkIfKafkaIsReachable() (string, error) {
+	err := h.producer.ConnectivityCheck()
+	if err != nil {
+		return "Could not connect to Kafka", err
+	}
+	return "Successfully connected to Kafka", nil
 }

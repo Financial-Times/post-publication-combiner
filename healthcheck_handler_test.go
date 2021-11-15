@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -11,7 +10,7 @@ import (
 
 	"github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/go-logger/v2"
-	"github.com/Financial-Times/message-queue-go-producer/producer"
+	"github.com/Financial-Times/kafka-client-go/v2"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"github.com/stretchr/testify/assert"
 )
@@ -22,7 +21,7 @@ const (
 )
 
 func TestCheckIfDocumentStoreIsReachable_Errors(t *testing.T) {
-	expError := errors.New("some error")
+	expError := fmt.Errorf("some error")
 	dc := dummyClient{
 		err: expError,
 	}
@@ -54,7 +53,7 @@ func TestCheckIfDocumentStoreIsReachable_Succeeds(t *testing.T) {
 }
 
 func TestCheckIfInternalContentAPIIsReachable_Errors(t *testing.T) {
-	expError := errors.New("some error")
+	expError := fmt.Errorf("some error")
 	dc := dummyClient{
 		err: expError,
 	}
@@ -105,8 +104,8 @@ func TestAllHealthChecks(t *testing.T) {
 		{
 			description:        "CombinedPostPublicationEvents messages are being forwarded to the queue",
 			healthcheckHandler: h,
-			healthcheckFunc:    checkKafkaProxyProducerConnectivity,
-			expectedResponse:   "",
+			healthcheckFunc:    checkKafkaProducerConnectivity,
+			expectedResponse:   "Successfully connected to Kafka",
 		},
 		{
 			description:        "PostPublicationEvents and PostMetadataPublicationEvents messages are received from the queue",
@@ -157,7 +156,7 @@ func TestGTG_Good(t *testing.T) {
 func TestGTG_Bad(t *testing.T) {
 	testCases := []struct {
 		description              string
-		producer                 producer.MessageProducer
+		producer                 messageProducer
 		consumer                 consumer.MessageConsumer
 		docStoreAPIStatus        int
 		internalContentAPIStatus int
@@ -236,16 +235,16 @@ type mockProducer struct {
 	isConnectionHealthy bool
 }
 
-func (p *mockProducer) SendMessage(string, producer.Message) error {
+func (p *mockProducer) SendMessage(kafka.FTMessage) error {
 	return nil
 }
 
-func (p *mockProducer) ConnectivityCheck() (string, error) {
+func (p *mockProducer) ConnectivityCheck() error {
 	if p.isConnectionHealthy {
-		return "", nil
+		return nil
 	}
 
-	return "", errors.New("error connecting to the queue")
+	return fmt.Errorf("error connecting to the queue")
 }
 
 type mockConsumer struct {
@@ -263,5 +262,5 @@ func (p *mockConsumer) ConnectivityCheck() (string, error) {
 		return "", nil
 	}
 
-	return "", errors.New("error connecting to the queue")
+	return "", fmt.Errorf("error connecting to the queue")
 }
