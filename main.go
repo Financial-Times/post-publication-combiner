@@ -12,7 +12,7 @@ import (
 	health "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/go-logger/v2"
 	"github.com/Financial-Times/http-handlers-go/v2/httphandlers"
-	"github.com/Financial-Times/message-queue-go-producer/producer"
+	"github.com/Financial-Times/kafka-client-go/v2"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"github.com/Financial-Times/post-publication-combiner/v2/processor"
 	"github.com/Financial-Times/post-publication-combiner/v2/utils"
@@ -60,10 +60,16 @@ func main() {
 		Value:  "ForcedCombinedPostPublicationEvents",
 		EnvVar: "KAFKA_FORCED_COMBINED_TOPIC_NAME",
 	})
+	kafkaAddress := app.String(cli.StringOpt{
+		Name:   "kafkaAddress",
+		Value:  "kafka:9092",
+		Desc:   "Address used by the queue producer to connect to Kafka",
+		EnvVar: "KAFKA_ADDR",
+	})
 	kafkaProxyAddress := app.String(cli.StringOpt{
 		Name:   "kafkaProxyAddress",
 		Value:  "http://localhost:8080",
-		Desc:   "Address used by the queue consumer and producer to connect to the queue",
+		Desc:   "Address used by the queue consumer to connect to the queue",
 		EnvVar: "KAFKA_PROXY_ADDR",
 	})
 	kafkaContentConsumerGroup := app.String(cli.StringOpt{
@@ -186,16 +192,26 @@ func main() {
 			utils.ApiURL{BaseURL: *internalContentAPIBaseURL, Endpoint: *internalContentAPIEndpoint},
 			utils.ApiURL{BaseURL: *contentCollectionRWBaseURL, Endpoint: *contentCollectionRWEndpoint}, &client)
 
-		pQConf := processor.NewProducerConfig(*kafkaProxyAddress, *combinedTopic, *kafkaProxyRoutingHeader)
-		msgProducer := producer.NewMessageProducerWithHTTPClient(pQConf, &client)
+		producerConfig := kafka.ProducerConfig{
+			BrokersConnectionString: *kafkaAddress,
+			Topic:                   *combinedTopic,
+			Options:                 kafka.DefaultProducerOptions(),
+		}
+		messageProducer := kafka.NewProducer(producerConfig, log, 0, time.Minute)
+
 		processorConf := processor.NewMsgProcessorConfig(*whitelistedContentUris, *whitelistedMetadataOriginSystemHeaders, *contentTopic, *metadataTopic)
-		msgProcessor := processor.NewMsgProcessor(log, messagesCh, processorConf, dataCombiner, msgProducer, *whitelistedContentTypes)
+		msgProcessor := processor.NewMsgProcessor(log, messagesCh, processorConf, dataCombiner, messageProducer, *whitelistedContentTypes)
 		go msgProcessor.ProcessMessages()
 
 		// process requested messages - used for re-indexing and forced requests
-		forcedPQConf := processor.NewProducerConfig(*kafkaProxyAddress, *forcedCombinedTopic, *kafkaProxyRoutingHeader)
-		forcedMsgProducer := producer.NewMessageProducerWithHTTPClient(forcedPQConf, &client)
-		requestProcessor := processor.NewRequestProcessor(log, dataCombiner, forcedMsgProducer, *whitelistedContentTypes)
+		forcedProducerConfig := kafka.ProducerConfig{
+			BrokersConnectionString: *kafkaAddress,
+			Topic:                   *forcedCombinedTopic,
+			Options:                 kafka.DefaultProducerOptions(),
+		}
+		forcedMessageProducer := kafka.NewProducer(forcedProducerConfig, log, 0, time.Minute)
+
+		requestProcessor := processor.NewRequestProcessor(log, dataCombiner, forcedMessageProducer, *whitelistedContentTypes)
 
 		reqHandler := &requestHandler{
 			requestProcessor: requestProcessor,
@@ -203,7 +219,7 @@ func main() {
 		}
 
 		// Since the health check for all producers and consumers just checks /topics for a response, we pick a producer and a consumer at random
-		healthcheckHandler := NewCombinerHealthcheck(log, msgProducer, mc.Consumer, &client, *docStoreAPIBaseURL, *internalContentAPIBaseURL)
+		healthcheckHandler := NewCombinerHealthcheck(log, messageProducer, mc.Consumer, &client, *docStoreAPIBaseURL, *internalContentAPIBaseURL)
 
 		routeRequests(log, port, reqHandler, healthcheckHandler)
 	}
@@ -224,7 +240,7 @@ func routeRequests(log *logger.UPPLogger, port *string, requestHandler *requestH
 	r.HandleFunc(status.GTGPath, status.NewGoodToGoHandler(healthService.GTG))
 
 	checks := []health.Check{
-		checkKafkaProxyProducerConnectivity(healthService),
+		checkKafkaProducerConnectivity(healthService),
 		checkKafkaProxyConsumerConnectivity(healthService),
 		checkDocumentStoreAPIHealthcheck(healthService),
 		checkInternalContentAPIHealthcheck(healthService),

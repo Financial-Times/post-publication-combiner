@@ -2,7 +2,6 @@ package processor
 
 import (
 	"github.com/Financial-Times/go-logger/v2"
-	"github.com/Financial-Times/message-queue-go-producer/producer"
 	"github.com/dchest/uniuri"
 )
 
@@ -21,7 +20,7 @@ type RequestProcessor struct {
 	log          *logger.UPPLogger
 }
 
-func NewRequestProcessor(log *logger.UPPLogger, dataCombiner DataCombinerI, producer producer.MessageProducer, whitelistedContentTypes []string) *RequestProcessor {
+func NewRequestProcessor(log *logger.UPPLogger, dataCombiner DataCombinerI, producer messageProducer, whitelistedContentTypes []string) *RequestProcessor {
 	return &RequestProcessor{
 		dataCombiner: dataCombiner,
 		forwarder:    NewForwarder(log, producer, whitelistedContentTypes),

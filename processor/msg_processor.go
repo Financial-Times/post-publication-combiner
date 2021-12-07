@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/Financial-Times/go-logger/v2"
-	"github.com/Financial-Times/message-queue-go-producer/producer"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"github.com/dchest/uniuri"
 )
@@ -40,7 +39,7 @@ func NewMsgProcessorConfig(supportedURIs []string, supportedHeaders []string, co
 	}
 }
 
-func NewMsgProcessor(log *logger.UPPLogger, srcCh <-chan *KafkaQMessage, config MsgProcessorConfig, dataCombiner DataCombinerI, producer producer.MessageProducer, whitelistedContentTypes []string) *MsgProcessor {
+func NewMsgProcessor(log *logger.UPPLogger, srcCh <-chan *KafkaQMessage, config MsgProcessorConfig, dataCombiner DataCombinerI, producer messageProducer, whitelistedContentTypes []string) *MsgProcessor {
 	return &MsgProcessor{
 		src:          srcCh,
 		config:       config,

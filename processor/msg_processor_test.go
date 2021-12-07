@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/Financial-Times/go-logger/v2"
-	"github.com/Financial-Times/message-queue-go-producer/producer"
+	"github.com/Financial-Times/kafka-client-go/v2"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	hooks "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -173,7 +173,7 @@ func TestProcessContentMsg_Successfully_Forwarded(t *testing.T) {
 		},
 	}
 
-	expMsg := producer.Message{
+	expMsg := kafka.FTMessage{
 		Headers: m.Headers,
 		Body:    `{"uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b","content":{"title":"simple title","type":"Article","uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b"},"internalContent":null,"metadata":null,"contentUri":"http://wordpress-article-mapper/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b","lastModified":"2017-03-30T13:09:06.48Z","deleted":false}`,
 	}
@@ -209,7 +209,7 @@ func TestProcessContentMsg_DeleteEvent_Successfully_Forwarded(t *testing.T) {
 			LastModified: "2017-03-30T13:09:06.48Z",
 		}}
 
-	expMsg := producer.Message{
+	expMsg := kafka.FTMessage{
 		Headers: m.Headers,
 		Body:    `{"uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b","contentUri":"http://wordpress-article-mapper/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b","deleted":true,"lastModified":"2017-03-30T13:09:06.48Z","content":null,"internalContent":null,"metadata":null}`,
 	}
@@ -395,7 +395,7 @@ func TestProcessMetadataMsg_Successfully_Forwarded(t *testing.T) {
 				},
 			},
 		}}
-	expMsg := producer.Message{
+	expMsg := kafka.FTMessage{
 		Headers: m.Headers,
 		Body:    `{"uuid":"some_uuid","contentUri":"","lastModified":"","deleted":false,"content":{"uuid":"some_uuid","title":"simple title","type":"Article"},"internalContent":{"uuid":"some_uuid","title":"simple title","type":"Article"},"metadata":[{"thing":{"id":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995","prefLabel":"Barclays","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/organisation/Organisation","http://base-url/company/Company","http://base-url/company/PublicCompany"],"predicate":"http://base-url/about","apiUrl":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995"}}]}`,
 	}
@@ -448,11 +448,11 @@ func TestForwardMsg(t *testing.T) {
 
 		q := MsgProcessor{
 			forwarder: Forwarder{
-				msgProducer: DummyMsgProducer{
+				producer: DummyMsgProducer{
 					t:        t,
 					expUUID:  testCase.uuid,
 					expError: testCase.err,
-					expMsg: producer.Message{
+					expMsg: kafka.FTMessage{
 						Headers: testCase.headers,
 						Body:    testCase.body,
 					},
@@ -555,16 +555,15 @@ type DummyMsgProducer struct {
 	t        *testing.T
 	expUUID  string
 	expTID   string
-	expMsg   producer.Message
+	expMsg   kafka.FTMessage
 	expError error
 }
 
-func (p DummyMsgProducer) SendMessage(uuid string, m producer.Message) error {
+func (p DummyMsgProducer) SendMessage(m kafka.FTMessage) error {
 	if p.expError != nil {
 		return p.expError
 	}
 	assert.Equal(p.t, m.Headers["Message-Type"], CombinerMessageType)
-	assert.Equal(p.t, p.expUUID, uuid)
 	if p.expMsg.Headers["X-Request-Id"] == "[ignore]" {
 		p.expMsg.Headers["X-Request-Id"] = m.Headers["X-Request-Id"]
 	}

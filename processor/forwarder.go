@@ -4,32 +4,28 @@ import (
 	"encoding/json"
 
 	"github.com/Financial-Times/go-logger/v2"
-	"github.com/Financial-Times/message-queue-go-producer/producer"
+	"github.com/Financial-Times/kafka-client-go/v2"
 )
 
 const (
 	CombinerMessageType = "cms-combined-content-published"
 )
 
+type messageProducer interface {
+	SendMessage(message kafka.FTMessage) error
+}
+
 type Forwarder struct {
-	msgProducer           producer.MessageProducer
+	producer              messageProducer
 	supportedContentTypes []string
 	log                   *logger.UPPLogger
 }
 
-func NewForwarder(log *logger.UPPLogger, msgProducer producer.MessageProducer, supportedContentTypes []string) Forwarder {
+func NewForwarder(log *logger.UPPLogger, producer messageProducer, supportedContentTypes []string) Forwarder {
 	return Forwarder{
-		msgProducer:           msgProducer,
+		producer:              producer,
 		supportedContentTypes: supportedContentTypes,
 		log:                   log,
-	}
-}
-
-func NewProducerConfig(proxyAddress string, topic string, routingHeader string) producer.MessageProducerConfig {
-	return producer.MessageProducerConfig{
-		Addr:  proxyAddress,
-		Topic: topic,
-		Queue: routingHeader,
 	}
 }
 
@@ -61,7 +57,7 @@ func (p *Forwarder) forwardMsg(headers map[string]string, model *CombinedModel) 
 	}
 	// add special message type
 	headers["Message-Type"] = CombinerMessageType
-	return p.msgProducer.SendMessage(model.UUID, producer.Message{Headers: headers, Body: string(b)})
+	return p.producer.SendMessage(kafka.FTMessage{Headers: headers, Body: string(b)})
 }
 
 func contains(array []string, element string) bool {
