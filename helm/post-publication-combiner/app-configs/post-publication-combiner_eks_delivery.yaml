@@ -18,4 +18,4 @@ env:
   CONTENT_COLLECTION_RW_ENDPOINT: "/content-collection/content-package/{uuid}"
   WHITELISTED_METADATA_ORIGIN_SYSTEM_HEADERS: "http://cmdb.ft.com/systems/pac, http://cmdb.ft.com/systems/methode-web-pub, http://cmdb.ft.com/systems/next-video-editor"
   WHITELISTED_CONTENT_URIS: "methode-article-mapper, wordpress-article-mapper, next-video-mapper, upp-content-validator"
-  WHITELISTED_CONTENT_TYPES: "Article, Video, MediaResource, Audio, ContentPackage, LiveBlogPackage, LiveBlogPost, ContentCollection, ImageSet, Image, Graphic, ,"
+  WHITELISTED_CONTENT_TYPES: "Article, Video, MediaResource, Audio, ContentPackage, LiveBlogPackage, LiveBlogPost, ContentCollection, ImageSet, Image, Graphic, LiveEvent, ,"
