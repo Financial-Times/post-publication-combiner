@@ -23,7 +23,10 @@ import (
 	"github.com/rcrowley/go-metrics"
 )
 
-const serviceName = "post-publication-combiner"
+const (
+	serviceName = "post-publication-combiner"
+	systemCode  = "post-publication-combiner"
+)
 
 func main() {
 	app := cli.App(serviceName, "Service listening to content and metadata PostPublication events, and forwards a combined message to the queue")
@@ -248,7 +251,7 @@ func routeRequests(log *logger.UPPLogger, port *string, requestHandler *requestH
 
 	hc := health.TimedHealthCheck{
 		HealthCheck: health.HealthCheck{
-			SystemCode:  "upp-post-publication-combiner",
+			SystemCode:  systemCode,
 			Name:        "post-publication-combiner",
 			Description: "Checks for service dependencies: document-store, internal-content-api, kafka proxy and the presence of related topics",
 			Checks:      checks,
