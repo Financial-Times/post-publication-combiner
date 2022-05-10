@@ -132,13 +132,13 @@ func main() {
 	})
 	whitelistedMetadataOriginSystemHeaders := app.Strings(cli.StringsOpt{
 		Name:   "whitelistedMetadataOriginSystemHeaders",
-		Value:  []string{"http://cmdb.ft.com/systems/pac", "http://cmdb.ft.com/systems/methode-web-pub", "http://cmdb.ft.com/systems/next-video-editor"},
+		Value:  []string{"http://cmdb.ft.com/systems/pac", "http://cmdb.ft.com/systems/next-video-editor"},
 		Desc:   "Origin-System-Ids that are supported to be processed from the PostPublicationEvents queue.",
 		EnvVar: "WHITELISTED_METADATA_ORIGIN_SYSTEM_HEADERS",
 	})
 	whitelistedContentUris := app.Strings(cli.StringsOpt{
 		Name:   "whitelistedContentURIs",
-		Value:  []string{"methode-article-mapper", "wordpress-article-mapper", "next-video-mapper", "upp-content-validator"},
+		Value:  []string{"next-video-mapper", "upp-content-validator"},
 		Desc:   "Space separated list with content URI substrings - to identify accepted content types.",
 		EnvVar: "WHITELISTED_CONTENT_URIS",
 	})
