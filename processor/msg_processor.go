@@ -72,7 +72,7 @@ func (p *MsgProcessor) processContentMsg(m consumer.Message) {
 		return
 	}
 
-	// wordpress, next-video, methode-article - the system origin is not enough to help us filtering. Filter by contentUri.
+	// next-video, upp-content-validator - the system origin is not enough to help us filtering. Filter by contentUri.
 	if !containsSubstringOf(p.config.SupportedContentURIs, cm.ContentURI) {
 		p.log.WithTransactionID(tid).Infof("%v - Skipped unsupported content with contentUri: %v. ", tid, cm.ContentURI)
 		return
