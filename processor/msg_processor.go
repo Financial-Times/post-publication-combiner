@@ -16,7 +16,7 @@ var (
 )
 
 type MsgProcessor struct {
-	src          <-chan *KafkaQMessage
+	src          <-chan *KafkaMessage
 	config       MsgProcessorConfig
 	dataCombiner DataCombinerI
 	forwarder    *forwarder
@@ -39,7 +39,7 @@ func NewMsgProcessorConfig(supportedURIs []string, supportedHeaders []string, co
 	}
 }
 
-func NewMsgProcessor(log *logger.UPPLogger, srcCh <-chan *KafkaQMessage, config MsgProcessorConfig, dataCombiner DataCombinerI, producer messageProducer, whitelistedContentTypes []string) *MsgProcessor {
+func NewMsgProcessor(log *logger.UPPLogger, srcCh <-chan *KafkaMessage, config MsgProcessorConfig, dataCombiner DataCombinerI, producer messageProducer, whitelistedContentTypes []string) *MsgProcessor {
 	return &MsgProcessor{
 		src:          srcCh,
 		config:       config,
@@ -52,10 +52,10 @@ func NewMsgProcessor(log *logger.UPPLogger, srcCh <-chan *KafkaQMessage, config 
 func (p *MsgProcessor) ProcessMessages() {
 	for {
 		m := <-p.src
-		if m.msgType == p.config.ContentTopic {
-			p.processContentMsg(m.msg)
-		} else if m.msgType == p.config.MetadataTopic {
-			p.processMetadataMsg(m.msg)
+		if m.topic == p.config.ContentTopic {
+			p.processContentMsg(m.message)
+		} else if m.topic == p.config.MetadataTopic {
+			p.processMetadataMsg(m.message)
 		}
 	}
 }
