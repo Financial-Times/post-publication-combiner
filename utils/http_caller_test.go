@@ -1,9 +1,8 @@
 package utils
 
 import (
-	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -17,18 +16,16 @@ type dummyClient struct {
 	err        error
 }
 
-func (c *dummyClient) Do(req *http.Request) (*http.Response, error) {
-
+func (c *dummyClient) Do(*http.Request) (*http.Response, error) {
 	resp := &http.Response{
 		StatusCode: c.statusCode,
-		Body:       ioutil.NopCloser(strings.NewReader(c.body)),
+		Body:       io.NopCloser(strings.NewReader(c.body)),
 	}
 
 	return resp, c.err
 }
 
 func TestExecuteHTTPRequest(t *testing.T) {
-
 	tests := []struct {
 		dc            dummyClient
 		url           string
@@ -43,16 +40,16 @@ func TestExecuteHTTPRequest(t *testing.T) {
 			url:           "one malformed:url",
 			expRespBody:   nil,
 			expRespStatus: -1,
-			expErrStr:     "Error creating requests for url=one malformed:url",
+			expErrStr:     "error creating request for url \"one malformed:url\"",
 		},
 		{
 			dc: dummyClient{
-				err: errors.New("Some error"),
+				err: fmt.Errorf("some error"),
 			},
 			url:           "url",
 			expRespBody:   nil,
 			expRespStatus: -1,
-			expErrStr:     "Error executing requests for url=url, error=Some error",
+			expErrStr:     "error executing request for url \"url\": some error",
 		},
 		{
 			dc: dummyClient{
@@ -63,7 +60,7 @@ func TestExecuteHTTPRequest(t *testing.T) {
 			url:           "url",
 			expRespBody:   nil,
 			expRespStatus: http.StatusNotFound,
-			expErrStr:     fmt.Sprintf("Connecting to url was not successful. Status: %d", http.StatusNotFound),
+			expErrStr:     fmt.Sprintf("request to \"url\" failed with status: %d", http.StatusNotFound),
 		},
 		{
 			dc: dummyClient{
@@ -84,10 +81,10 @@ func TestExecuteHTTPRequest(t *testing.T) {
 		if err != nil {
 			assert.Contains(t, err.Error(), testCase.expErrStr)
 		} else {
-			assert.Equal(t, testCase.expErrStr, "", fmt.Sprintf("Expected error %v not equal with nil", testCase.expErrStr))
+			assert.Empty(t, testCase.expErrStr)
 		}
 
-		assert.Equal(t, testCase.expRespBody, b, fmt.Sprintf("Expected body %v not equal with received body %v", testCase.expRespBody, b))
-		assert.Equal(t, testCase.expRespStatus, s, fmt.Sprintf("Expected status %v not equal with received status %v", testCase.expRespStatus, s))
+		assert.Equal(t, testCase.expRespBody, b)
+		assert.Equal(t, testCase.expRespStatus, s)
 	}
 }
