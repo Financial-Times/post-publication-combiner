@@ -1,10 +1,12 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/Financial-Times/go-logger/v2"
 	"github.com/Financial-Times/post-publication-combiner/v2/processor"
+	"github.com/dchest/uniuri"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
@@ -13,35 +15,55 @@ const (
 	idPathVar = "id"
 )
 
+type requestProcessor interface {
+	ForcePublication(uuid string, tid string) error
+}
+
 type requestHandler struct {
-	requestProcessor processor.RequestProcessorI
+	requestProcessor requestProcessor
 	log              *logger.UPPLogger
 }
 
-func (handler *requestHandler) postMessage(writer http.ResponseWriter, request *http.Request) {
-	uuid := mux.Vars(request)[idPathVar]
-	transactionID := request.Header.Get("X-Request-Id")
+func (h *requestHandler) publishMessage(w http.ResponseWriter, r *http.Request) {
+	uuid := mux.Vars(r)[idPathVar]
+	transactionID := r.Header.Get("X-Request-Id")
 
-	defer request.Body.Close()
+	log := h.log.
+		WithTransactionID(transactionID).
+		WithUUID(uuid)
 
 	if !isValidUUID(uuid) {
-		handler.log.WithTransactionID(transactionID).Errorf("Invalid UUID %s", uuid)
-		writer.WriteHeader(http.StatusBadRequest)
+		log.Error("Invalid UUID")
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	err := handler.requestProcessor.ForceMessagePublish(uuid, transactionID)
-	switch err {
-	case nil:
-		writer.WriteHeader(http.StatusOK)
-	case processor.NotFoundError:
-		writer.WriteHeader(http.StatusNotFound)
-	case processor.InvalidContentTypeError:
-		writer.WriteHeader(http.StatusUnprocessableEntity)
-	default:
-		writer.WriteHeader(http.StatusInternalServerError)
+	if transactionID == "" {
+		transactionID = "tid_force_publish" + uniuri.NewLen(10) + "_post_publication_combiner"
+		log = log.WithTransactionID(transactionID)
+		log.Info("Transaction ID was not provided. Generated a new one")
 	}
 
+	err := h.requestProcessor.ForcePublication(uuid, transactionID)
+	if err != nil {
+		log.WithError(err).Error("Failed message publication")
+
+		if errors.Is(err, processor.NotFoundError) {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		if errors.Is(err, processor.InvalidContentTypeError) {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			return
+		}
+
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	log.Info("Message published successfully")
+	w.WriteHeader(http.StatusOK)
 }
 
 func isValidUUID(id string) bool {

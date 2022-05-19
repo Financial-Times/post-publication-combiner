@@ -130,10 +130,10 @@ func TestProcessContentMsg_Forwarder_Errors(t *testing.T) {
 			Content: cm.ContentModel,
 		},
 	}
-	dummyMsgProducer := DummyMsgProducer{t: t, expError: fmt.Errorf("some dummyMsgProducer error")}
+	dummyMsgProducer := DummyProducer{t: t, expError: fmt.Errorf("some producer error")}
 
 	log, hook := testLogger()
-	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: NewForwarder(log, dummyMsgProducer, allowedContentTypes), log: log}
+	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: newForwarder(dummyMsgProducer, allowedContentTypes), log: log}
 
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
@@ -178,10 +178,10 @@ func TestProcessContentMsg_Successfully_Forwarded(t *testing.T) {
 		Body:    `{"uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b","content":{"title":"simple title","type":"Article","uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b"},"internalContent":null,"metadata":null,"contentUri":"http://wordpress-article-mapper/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b","lastModified":"2017-03-30T13:09:06.48Z","deleted":false}`,
 	}
 
-	dummyMsgProducer := DummyMsgProducer{t: t, expUUID: dummyDataCombiner.data.UUID, expMsg: expMsg}
+	dummyMsgProducer := DummyProducer{t: t, expUUID: dummyDataCombiner.data.UUID, expMsg: expMsg}
 
 	log, hook := testLogger()
-	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: NewForwarder(log, dummyMsgProducer, allowedContentTypes), log: log}
+	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: newForwarder(dummyMsgProducer, allowedContentTypes), log: log}
 
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
@@ -214,10 +214,10 @@ func TestProcessContentMsg_DeleteEvent_Successfully_Forwarded(t *testing.T) {
 		Body:    `{"uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b","contentUri":"http://wordpress-article-mapper/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b","deleted":true,"lastModified":"2017-03-30T13:09:06.48Z","content":null,"internalContent":null,"metadata":null}`,
 	}
 
-	dummyMsgProducer := DummyMsgProducer{t: t, expUUID: dummyDataCombiner.data.UUID, expMsg: expMsg}
+	dummyMsgProducer := DummyProducer{t: t, expUUID: dummyDataCombiner.data.UUID, expMsg: expMsg}
 
 	log, hook := testLogger()
-	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: NewForwarder(log, dummyMsgProducer, allowedContentTypes), log: log}
+	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: newForwarder(dummyMsgProducer, allowedContentTypes), log: log}
 
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
@@ -316,10 +316,10 @@ func TestProcessMetadataMsg_Forwarder_Errors(t *testing.T) {
 		UUID:    "some_uuid",
 		Content: ContentModel{"uuid": "some_uuid", "title": "simple title", "type": "Article"},
 	}}
-	dummyMsgProducer := DummyMsgProducer{t: t, expError: fmt.Errorf("some dummyMsgProducer error")}
+	dummyMsgProducer := DummyProducer{t: t, expError: fmt.Errorf("some producer error")}
 
 	log, hook := testLogger()
-	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: NewForwarder(log, dummyMsgProducer, allowedContentTypes), log: log}
+	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: newForwarder(dummyMsgProducer, allowedContentTypes), log: log}
 
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
@@ -328,7 +328,7 @@ func TestProcessMetadataMsg_Forwarder_Errors(t *testing.T) {
 
 	assert.Equal(t, "error", hook.LastEntry().Level.String())
 	assert.Contains(t, hook.LastEntry().Message, fmt.Sprintf("%v - Error sending transformed message to queue", m.Headers["X-Request-Id"]))
-	assert.Equal(t, hook.LastEntry().Data["error"].(error).Error(), "some dummyMsgProducer error")
+	assert.Equal(t, hook.LastEntry().Data["error"].(error).Error(), "some producer error")
 	assert.Equal(t, 1, len(hook.Entries))
 }
 func TestProcessMetadataMsg_Forward_Skipped(t *testing.T) {
@@ -344,10 +344,10 @@ func TestProcessMetadataMsg_Forward_Skipped(t *testing.T) {
 	config := MsgProcessorConfig{SupportedHeaders: allowedOrigins}
 	dummyDataCombiner := DummyDataCombiner{t: t, expectedMetadata: *am, data: CombinedModel{UUID: "some_uuid"}}
 	// The producer should return an error so that the test won't pass if the message forward is attempted
-	dummyMsgProducer := DummyMsgProducer{t: t, expError: fmt.Errorf("some dummyMsgProducer error")}
+	dummyMsgProducer := DummyProducer{t: t, expError: fmt.Errorf("some producer error")}
 
 	log, hook := testLogger()
-	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: NewForwarder(log, dummyMsgProducer, allowedContentTypes), log: log}
+	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: newForwarder(dummyMsgProducer, allowedContentTypes), log: log}
 
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
@@ -400,10 +400,10 @@ func TestProcessMetadataMsg_Successfully_Forwarded(t *testing.T) {
 		Body:    `{"uuid":"some_uuid","contentUri":"","lastModified":"","deleted":false,"content":{"uuid":"some_uuid","title":"simple title","type":"Article"},"internalContent":{"uuid":"some_uuid","title":"simple title","type":"Article"},"metadata":[{"thing":{"id":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995","prefLabel":"Barclays","types":["http://base-url/core/Thing","http://base-url/concept/Concept","http://base-url/organisation/Organisation","http://base-url/company/Company","http://base-url/company/PublicCompany"],"predicate":"http://base-url/about","apiUrl":"http://base-url/80bec524-8c75-4d0f-92fa-abce3962d995"}}]}`,
 	}
 
-	dummyMsgProducer := DummyMsgProducer{t: t, expUUID: dummyDataCombiner.data.UUID, expMsg: expMsg}
+	dummyMsgProducer := DummyProducer{t: t, expUUID: dummyDataCombiner.data.UUID, expMsg: expMsg}
 
 	log, hook := testLogger()
-	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: NewForwarder(log, dummyMsgProducer, allowedContentTypes), log: log}
+	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: newForwarder(dummyMsgProducer, allowedContentTypes), log: log}
 
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
@@ -447,8 +447,8 @@ func TestForwardMsg(t *testing.T) {
 		assert.Nil(t, err)
 
 		q := MsgProcessor{
-			forwarder: Forwarder{
-				producer: DummyMsgProducer{
+			forwarder: &forwarder{
+				producer: DummyProducer{
 					t:        t,
 					expUUID:  testCase.uuid,
 					expError: testCase.err,
@@ -551,7 +551,7 @@ func TestSupports(t *testing.T) {
 	}
 }
 
-type DummyMsgProducer struct {
+type DummyProducer struct {
 	t        *testing.T
 	expUUID  string
 	expTID   string
@@ -559,7 +559,16 @@ type DummyMsgProducer struct {
 	expError error
 }
 
-func (p DummyMsgProducer) SendMessage(m kafka.FTMessage) error {
+func NewDummyProducer(t *testing.T, uuid, tid string, message kafka.FTMessage) DummyProducer {
+	return DummyProducer{
+		t:       t,
+		expUUID: uuid,
+		expTID:  tid,
+		expMsg:  message,
+	}
+}
+
+func (p DummyProducer) SendMessage(m kafka.FTMessage) error {
 	if p.expError != nil {
 		return p.expError
 	}
@@ -567,19 +576,13 @@ func (p DummyMsgProducer) SendMessage(m kafka.FTMessage) error {
 	if p.expMsg.Headers["X-Request-Id"] == "[ignore]" {
 		p.expMsg.Headers["X-Request-Id"] = m.Headers["X-Request-Id"]
 	}
-	if p.expTID != "" {
-		assert.Equal(p.t, p.expTID, m.Headers["X-Request-Id"])
-	}
 
-	assert.NotEmpty(p.t, m.Headers["X-Request-Id"])
+	assert.Equal(p.t, p.expTID, m.Headers["X-Request-Id"])
+
 	assert.True(p.t, reflect.DeepEqual(p.expMsg.Headers, m.Headers), "Expected: %v \nActual: %v", p.expMsg.Headers, m.Headers)
 	assert.JSONEq(p.t, p.expMsg.Body, m.Body, "Expected: %v \nActual: %v", p.expMsg.Body, m.Body)
 
 	return nil
-}
-
-func (p DummyMsgProducer) ConnectivityCheck() (string, error) {
-	return "", nil
 }
 
 type DummyDataCombiner struct {

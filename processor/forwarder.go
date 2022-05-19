@@ -2,8 +2,8 @@ package processor
 
 import (
 	"encoding/json"
+	"fmt"
 
-	"github.com/Financial-Times/go-logger/v2"
 	"github.com/Financial-Times/kafka-client-go/v2"
 )
 
@@ -15,56 +15,52 @@ type messageProducer interface {
 	SendMessage(message kafka.FTMessage) error
 }
 
-type Forwarder struct {
+type forwarder struct {
 	producer              messageProducer
 	supportedContentTypes []string
-	log                   *logger.UPPLogger
 }
 
-func NewForwarder(log *logger.UPPLogger, producer messageProducer, supportedContentTypes []string) Forwarder {
-	return Forwarder{
+func newForwarder(producer messageProducer, supportedContentTypes []string) *forwarder {
+	return &forwarder{
 		producer:              producer,
 		supportedContentTypes: supportedContentTypes,
-		log:                   log,
 	}
 }
 
-func (p *Forwarder) filterAndForwardMsg(headers map[string]string, combinedMSG *CombinedModel, tid string) error {
-	if combinedMSG.Content != nil && !isTypeAllowed(p.supportedContentTypes, combinedMSG.Content.getType()) {
-		p.log.WithTransactionID(tid).WithUUID(combinedMSG.UUID).Infof("%v - Skipped unsupported content with type: %v", tid, combinedMSG.Content.getType())
-		return InvalidContentTypeError
+func (f *forwarder) filterAndForwardMsg(headers map[string]string, message *CombinedModel) error {
+	if message.Content != nil {
+		contentType := message.Content.getType()
+
+		if !f.isTypeAllowed(contentType) {
+			return fmt.Errorf("%w: %s", InvalidContentTypeError, message.Content.getType())
+		}
 	}
 
-	//forward data
-	err := p.forwardMsg(headers, combinedMSG)
-	if err != nil {
-		p.log.WithTransactionID(tid).WithError(err).Errorf("%v - Error sending transformed message to queue.", tid)
-		return err
+	if err := f.forwardMsg(headers, message); err != nil {
+		return fmt.Errorf("error forwarding message to Kafka: %w", err)
 	}
-	p.log.WithTransactionID(tid).Infof("%v - Mapped and sent for uuid: %v", tid, combinedMSG.UUID)
+
 	return nil
 }
 
-func isTypeAllowed(allowedTypes []string, value string) bool {
-	return contains(allowedTypes, value)
-}
-
-func (p *Forwarder) forwardMsg(headers map[string]string, model *CombinedModel) error {
-	// marshall message
-	b, err := json.Marshal(model)
-	if err != nil {
-		return err
-	}
-	// add special message type
-	headers["Message-Type"] = CombinerMessageType
-	return p.producer.SendMessage(kafka.FTMessage{Headers: headers, Body: string(b)})
-}
-
-func contains(array []string, element string) bool {
-	for _, e := range array {
-		if element == e {
+func (f *forwarder) isTypeAllowed(contentType string) bool {
+	for _, t := range f.supportedContentTypes {
+		if contentType == t {
 			return true
 		}
 	}
 	return false
+}
+
+func (f *forwarder) forwardMsg(headers map[string]string, message *CombinedModel) error {
+	b, err := json.Marshal(message)
+	if err != nil {
+		return err
+	}
+
+	headers["Message-Type"] = CombinerMessageType
+	return f.producer.SendMessage(kafka.FTMessage{
+		Headers: headers,
+		Body:    string(b),
+	})
 }

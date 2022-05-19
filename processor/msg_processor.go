@@ -19,7 +19,7 @@ type MsgProcessor struct {
 	src          <-chan *KafkaQMessage
 	config       MsgProcessorConfig
 	dataCombiner DataCombinerI
-	forwarder    Forwarder
+	forwarder    *forwarder
 	log          *logger.UPPLogger
 }
 
@@ -44,7 +44,7 @@ func NewMsgProcessor(log *logger.UPPLogger, srcCh <-chan *KafkaQMessage, config 
 		src:          srcCh,
 		config:       config,
 		dataCombiner: dataCombiner,
-		forwarder:    NewForwarder(log, producer, whitelistedContentTypes),
+		forwarder:    newForwarder(producer, whitelistedContentTypes),
 		log:          log,
 	}
 }
@@ -105,7 +105,7 @@ func (p *MsgProcessor) processContentMsg(m consumer.Message) {
 		combinedMSG.ContentURI = cm.ContentURI
 	}
 
-	_ = p.forwarder.filterAndForwardMsg(m.Headers, &combinedMSG, tid)
+	_ = p.forwarder.filterAndForwardMsg(m.Headers, &combinedMSG)
 }
 
 func (p *MsgProcessor) processMetadataMsg(m consumer.Message) {
@@ -138,7 +138,7 @@ func (p *MsgProcessor) processMetadataMsg(m consumer.Message) {
 		return
 	}
 
-	_ = p.forwarder.filterAndForwardMsg(m.Headers, &combinedMSG, tid)
+	_ = p.forwarder.filterAndForwardMsg(m.Headers, &combinedMSG)
 }
 
 func (p *MsgProcessor) extractTID(headers map[string]string) string {

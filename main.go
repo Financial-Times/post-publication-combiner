@@ -214,7 +214,7 @@ func main() {
 		}
 		forcedMessageProducer := kafka.NewProducer(forcedProducerConfig, log, 0, time.Minute)
 
-		requestProcessor := processor.NewRequestProcessor(log, dataCombiner, forcedMessageProducer, *whitelistedContentTypes)
+		requestProcessor := processor.NewRequestProcessor(dataCombiner, forcedMessageProducer, *whitelistedContentTypes)
 
 		reqHandler := &requestHandler{
 			requestProcessor: requestProcessor,
@@ -262,7 +262,7 @@ func routeRequests(log *logger.UPPLogger, port *string, requestHandler *requestH
 	r.Handle("/__health", handlers.MethodHandler{"GET": http.HandlerFunc(health.Handler(hc))})
 
 	servicesRouter := mux.NewRouter()
-	servicesRouter.HandleFunc("/{id}", requestHandler.postMessage).Methods("POST")
+	servicesRouter.HandleFunc("/{id}", requestHandler.publishMessage).Methods("POST")
 
 	var monitoringRouter http.Handler = servicesRouter
 	monitoringRouter = httphandlers.TransactionAwareRequestLoggingHandler(log, monitoringRouter)
