@@ -5,7 +5,6 @@ import (
 
 	health "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/go-logger/v2"
-	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"github.com/Financial-Times/post-publication-combiner/v2/utils"
 	"github.com/Financial-Times/service-status-go/gtg"
 )
@@ -19,16 +18,20 @@ type messageProducer interface {
 	ConnectivityCheck() error
 }
 
+type messageConsumer interface {
+	ConnectivityCheck() (string, error)
+}
+
 type HealthcheckHandler struct {
 	httpClient                utils.Client
 	log                       *logger.UPPLogger
 	producer                  messageProducer
-	consumer                  consumer.MessageConsumer
+	consumer                  messageConsumer
 	docStoreAPIBaseURL        string
 	internalContentAPIBaseURL string
 }
 
-func NewCombinerHealthcheck(log *logger.UPPLogger, p messageProducer, c consumer.MessageConsumer, client utils.Client, docStoreAPIURL string, internalContentAPIURL string) *HealthcheckHandler {
+func NewCombinerHealthcheck(log *logger.UPPLogger, p messageProducer, c messageConsumer, client utils.Client, docStoreAPIURL string, internalContentAPIURL string) *HealthcheckHandler {
 	return &HealthcheckHandler{
 		httpClient:                client,
 		log:                       log,
@@ -133,7 +136,7 @@ func (h *HealthcheckHandler) checkIfInternalContentAPIIsReachable() (string, err
 func (h *HealthcheckHandler) checkIfKafkaIsReachable() (string, error) {
 	err := h.producer.ConnectivityCheck()
 	if err != nil {
-		return "Could not connect to Kafka", err
+		return "", err
 	}
 	return "Successfully connected to Kafka", nil
 }
