@@ -1,16 +1,14 @@
 package processor
 
 import (
-	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"reflect"
 	"strings"
 	"testing"
 
 	"github.com/Financial-Times/post-publication-combiner/v2/utils"
-
 	"github.com/stretchr/testify/assert"
 )
 
@@ -22,7 +20,7 @@ func TestGetCombinedModelForContent(t *testing.T) {
 		retrievedAnn         []Annotation
 		retrievedErr         error
 		expModel             CombinedModel
-		expError             error
+		expError             string
 	}{
 		{
 			name:                 "no content UUID",
@@ -31,7 +29,7 @@ func TestGetCombinedModelForContent(t *testing.T) {
 			retrievedAnn:         []Annotation{},
 			retrievedErr:         nil,
 			expModel:             CombinedModel{},
-			expError:             errors.New("content has no UUID provided, can't deduce annotations for it"),
+			expError:             "content has no UUID provided, can't deduce annotations for it",
 		},
 		{
 			name: "retrieving error",
@@ -40,9 +38,9 @@ func TestGetCombinedModelForContent(t *testing.T) {
 			},
 			internalContentModel: ContentModel{"uuid": "some uuid"},
 			retrievedAnn:         []Annotation{},
-			retrievedErr:         errors.New("some error"),
+			retrievedErr:         fmt.Errorf("some error"),
 			expModel:             CombinedModel{},
-			expError:             errors.New("some error"),
+			expError:             "some error",
 		},
 		{
 			name: "valid content, no internal properties",
@@ -163,7 +161,7 @@ func TestGetCombinedModelForContent(t *testing.T) {
 				},
 				LastModified: "2017-04-10T08:09:01.808Z",
 			},
-			expError: nil,
+			expError: "",
 		},
 		{
 			name: "valid content, no internal properties, extended annotations",
@@ -308,7 +306,7 @@ func TestGetCombinedModelForContent(t *testing.T) {
 				},
 				LastModified: "2021-06-16T01:06:11.671Z",
 			},
-			expError: nil,
+			expError: "",
 		},
 		{
 			name: "valid content with internal properties",
@@ -403,22 +401,21 @@ func TestGetCombinedModelForContent(t *testing.T) {
 				Metadata:     []Annotation{},
 				LastModified: "2021-06-16T11:56:05.331Z",
 			},
-			expError: nil,
+			expError: "",
 		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			combiner := DataCombiner{
-				InternalContentRetriever: DummyInternalContentRetriever{testCase.internalContentModel, testCase.retrievedAnn, testCase.retrievedErr},
+				internalContentRetriever: DummyInternalContentRetriever{testCase.internalContentModel, testCase.retrievedAnn, testCase.retrievedErr},
 			}
 			m, err := combiner.GetCombinedModelForContent(testCase.contentModel)
-			assert.True(t, reflect.DeepEqual(testCase.expModel, m),
-				fmt.Sprintf("Expected model: %v was not equal with the received one: %v \n", testCase.expModel, m))
-			if testCase.expError == nil {
-				assert.Equal(t, nil, err)
+			assert.True(t, reflect.DeepEqual(testCase.expModel, m))
+			if testCase.expError == "" {
+				assert.NoError(t, err)
 			} else {
-				assert.Contains(t, err.Error(), testCase.expError.Error())
+				assert.EqualError(t, err, testCase.expError)
 			}
 		})
 	}
@@ -433,24 +430,24 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 		retrievedAnn        []Annotation
 		retrievedAnnErr     error
 		expModel            CombinedModel
-		expError            error
+		expError            string
 	}{
 		{
 			name:     "no content UUID",
-			expError: errors.New("annotations have no UUID referenced"),
+			expError: "annotations have no UUID referenced",
 		},
 		{
 			name:                "content error",
 			metadata:            AnnotationsMessage{Annotations: &AnnotationsModel{UUID: "some_uuid"}},
-			retrievedContentErr: errors.New("some content error"),
-			expError:            errors.New("some content error"),
+			retrievedContentErr: fmt.Errorf("some content error"),
+			expError:            "some content error",
 		},
 		{
 			name:                "content & annotations error",
 			metadata:            AnnotationsMessage{Annotations: &AnnotationsModel{UUID: "some_uuid"}},
-			retrievedContentErr: errors.New("some content error"),
-			retrievedAnnErr:     errors.New("some metadata error"),
-			expError:            errors.New("some content error"),
+			retrievedContentErr: fmt.Errorf("some content error"),
+			retrievedAnnErr:     fmt.Errorf("some metadata error"),
+			expError:            "some content error",
 		},
 		{
 			name:     "annotations error",
@@ -460,8 +457,8 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 				"title": "title",
 				"body":  "body",
 			},
-			retrievedAnnErr: errors.New("some metadata error"),
-			expError:        errors.New("some metadata error"),
+			retrievedAnnErr: fmt.Errorf("some metadata error"),
+			expError:        "some metadata error",
 		},
 		{
 			name:     "valid content and annotations",
@@ -682,25 +679,24 @@ func TestGetCombinedModelForAnnotations(t *testing.T) {
 					},
 				},
 			},
-			expError: nil,
+			expError: "",
 		},
 	}
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			combiner := DataCombiner{
-				ContentRetriever:           DummyContentRetriever{testCase.retrievedContent, testCase.retrievedContentErr},
-				ContentCollectionRetriever: DummyContentRetriever{ContentModel{}, nil},
-				InternalContentRetriever:   DummyInternalContentRetriever{testCase.retrievedContent, testCase.retrievedAnn, testCase.retrievedAnnErr},
+				contentRetriever:           DummyContentRetriever{testCase.retrievedContent, testCase.retrievedContentErr},
+				contentCollectionRetriever: DummyContentRetriever{ContentModel{}, nil},
+				internalContentRetriever:   DummyInternalContentRetriever{testCase.retrievedContent, testCase.retrievedAnn, testCase.retrievedAnnErr},
 			}
 
 			m, err := combiner.GetCombinedModelForAnnotations(testCase.metadata)
-			assert.Equal(t, testCase.expModel, m,
-				fmt.Sprintf("Expected model: %v was not equal with the received one: %v \n", testCase.expModel, m))
-			if testCase.expError == nil {
-				assert.Equal(t, nil, err)
+			assert.Equal(t, testCase.expModel, m)
+			if testCase.expError == "" {
+				assert.NoError(t, err)
 			} else {
-				assert.Contains(t, err.Error(), testCase.expError.Error())
+				assert.EqualError(t, err, testCase.expError)
 			}
 		})
 	}
@@ -732,8 +728,8 @@ func TestGetCombinedModel(t *testing.T) {
 		{
 			name:                          "content collection retrieval error",
 			retrievedContent:              ContentModel{},
-			retrievedContentCollectionErr: errors.New("some content collection retrieval error"),
-			expError:                      errors.New("some content collection retrieval error"),
+			retrievedContentCollectionErr: fmt.Errorf("some content collection retrieval error"),
+			expError:                      fmt.Errorf("some content collection retrieval error"),
 		},
 		{
 			name:             "valid content collection",
@@ -883,9 +879,9 @@ func TestGetCombinedModel(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			combiner := DataCombiner{
-				ContentRetriever:           DummyContentRetriever{testCase.retrievedContent, testCase.retrievedContentErr},
-				ContentCollectionRetriever: DummyContentRetriever{testCase.retrievedContentCollection, testCase.retrievedContentCollectionErr},
-				InternalContentRetriever:   DummyInternalContentRetriever{testCase.retrievedContent, testCase.retrievedAnn, testCase.retrievedAnnErr},
+				contentRetriever:           DummyContentRetriever{testCase.retrievedContent, testCase.retrievedContentErr},
+				contentCollectionRetriever: DummyContentRetriever{testCase.retrievedContentCollection, testCase.retrievedContentCollectionErr},
+				internalContentRetriever:   DummyInternalContentRetriever{testCase.retrievedContent, testCase.retrievedAnn, testCase.retrievedAnnErr},
 			}
 
 			m, err := combiner.GetCombinedModel("some-uuid")
@@ -906,7 +902,7 @@ func TestGetInternalContent(t *testing.T) {
 		dc             utils.Client
 		expContent     ContentModel
 		expAnnotations []Annotation
-		expError       error
+		expError       string
 	}{
 		{
 			name: "internal content - not found",
@@ -915,16 +911,16 @@ func TestGetInternalContent(t *testing.T) {
 			},
 			expContent:     nil,
 			expAnnotations: []Annotation(nil), //empty value for a slice
-			expError:       nil,
+			expError:       "",
 		},
 		{
 			name: "internal content - error response",
 			dc: dummyClient{
-				err: errors.New("some error"),
+				err: fmt.Errorf("some error"),
 			},
 			expContent:     nil,
 			expAnnotations: []Annotation(nil), //empty value for a slice
-			expError:       errors.New("some error"),
+			expError:       "error executing request for url \"some_host/some_endpoint\": some error",
 		},
 		{
 			name: "internal content - invalid body",
@@ -934,7 +930,7 @@ func TestGetInternalContent(t *testing.T) {
 			},
 			expContent:     nil,
 			expAnnotations: []Annotation(nil),
-			expError:       errors.New("could not unmarshal internal content with uuid=some_uuid"),
+			expError:       "error unmarshalling internal content: invalid character 'e' in literal true (expecting 'r')",
 		},
 		{
 			name: "internal content - valid body",
@@ -1028,7 +1024,7 @@ func TestGetInternalContent(t *testing.T) {
 					},
 				},
 			},
-			expError: nil,
+			expError: "",
 		},
 		{
 			name: "internal content - valid body with internal content properties & extended annotations",
@@ -1109,7 +1105,7 @@ func TestGetInternalContent(t *testing.T) {
 					},
 				},
 			},
-			expError: nil,
+			expError: "",
 		},
 	}
 
@@ -1117,25 +1113,14 @@ func TestGetInternalContent(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			dr := dataRetriever{"some_host/some_endpoint", testCase.dc}
 			c, ann, err := dr.getInternalContent("some_uuid")
-			assert.Equal(t, testCase.expAnnotations, ann,
-				fmt.Sprintf("Expected annotations: %v were not equal with received ones: %v \n", testCase.expAnnotations, ann))
-			if testCase.expError == nil {
-				assert.Equal(t, nil, err)
+			assert.Equal(t, testCase.expAnnotations, ann)
+			if testCase.expError == "" {
+				assert.NoError(t, err)
 			} else {
-				assert.Contains(t, err.Error(), testCase.expError.Error())
+				assert.EqualError(t, err, testCase.expError)
 			}
 
-			assert.True(t, reflect.DeepEqual(testCase.expContent, c), fmt.Sprintf("Expected content: %v was not equal with received content: %v \n", testCase.expContent, c))
-			if testCase.expError == nil {
-				assert.Equal(t, nil, err)
-			} else {
-				assert.True(t,
-					strings.Contains(
-						err.Error(),
-						testCase.expError.Error()),
-					fmt.Sprintf("'%s' does not contains '%s'", err.Error(), testCase.expError.Error()),
-				)
-			}
+			assert.True(t, reflect.DeepEqual(testCase.expContent, c))
 		})
 	}
 }
@@ -1145,7 +1130,7 @@ func TestGetContent(t *testing.T) {
 		name       string
 		dc         utils.Client
 		expContent ContentModel
-		expError   error
+		expError   string
 	}{
 		{
 			name: "content - not found",
@@ -1153,15 +1138,15 @@ func TestGetContent(t *testing.T) {
 				statusCode: http.StatusNotFound,
 			},
 			expContent: nil,
-			expError:   nil,
+			expError:   "",
 		},
 		{
 			name: "content - error",
 			dc: dummyClient{
-				err: errors.New("some error"),
+				err: fmt.Errorf("some error"),
 			},
 			expContent: nil,
-			expError:   errors.New("some error"),
+			expError:   "error executing request for url \"some_host/some_endpoint\": some error",
 		},
 		{
 			name: "content - invalid body",
@@ -1170,7 +1155,7 @@ func TestGetContent(t *testing.T) {
 				body:       "text that can't be unmarshalled",
 			},
 			expContent: nil,
-			expError:   errors.New("could not unmarshal content with uuid=some_uuid"),
+			expError:   "error unmarshalling content: invalid character 'e' in literal true (expecting 'r')",
 		},
 		{
 			name: "content - valid",
@@ -1225,7 +1210,7 @@ func TestGetContent(t *testing.T) {
 				"accessLevel":        "subscribed",
 				"canBeDistributed":   "yes",
 			},
-			expError: nil,
+			expError: "",
 		},
 	}
 
@@ -1234,16 +1219,11 @@ func TestGetContent(t *testing.T) {
 			dr := dataRetriever{"some_host/some_endpoint", testCase.dc}
 			c, err := dr.getContent("some_uuid")
 
-			assert.True(t, reflect.DeepEqual(testCase.expContent, c), fmt.Sprintf("Expected content: %v was not equal with received content: %v \n", testCase.expContent, c))
-			if testCase.expError == nil {
-				assert.Equal(t, nil, err)
+			assert.True(t, reflect.DeepEqual(testCase.expContent, c))
+			if testCase.expError == "" {
+				assert.NoError(t, err)
 			} else {
-				assert.True(t,
-					strings.Contains(
-						err.Error(),
-						testCase.expError.Error()),
-					fmt.Sprintf("'%s' does not contains '%s'", err.Error(), testCase.expError.Error()),
-				)
+				assert.EqualError(t, err, testCase.expError)
 			}
 		})
 	}
@@ -1258,7 +1238,7 @@ type dummyClient struct {
 func (c dummyClient) Do(*http.Request) (*http.Response, error) {
 	resp := &http.Response{
 		StatusCode: c.statusCode,
-		Body:       ioutil.NopCloser(strings.NewReader(c.body)),
+		Body:       io.NopCloser(strings.NewReader(c.body)),
 	}
 
 	return resp, c.err

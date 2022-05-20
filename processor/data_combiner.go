@@ -2,52 +2,56 @@ package processor
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/Financial-Times/post-publication-combiner/v2/utils"
 )
 
-type DataCombinerI interface {
+type dataCombiner interface {
 	GetCombinedModelForContent(content ContentModel) (CombinedModel, error)
 	GetCombinedModelForAnnotations(metadata AnnotationsMessage) (CombinedModel, error)
 	GetCombinedModel(uuid string) (CombinedModel, error)
 }
 
 type DataCombiner struct {
-	ContentRetriever           contentRetrieverI
-	ContentCollectionRetriever contentRetrieverI
-	InternalContentRetriever   internalContentRetrieverI
+	contentRetriever           contentRetriever
+	contentCollectionRetriever contentRetriever
+	internalContentRetriever   internalContentRetriever
 }
 
-type contentRetrieverI interface {
+type contentRetriever interface {
 	getContent(uuid string) (ContentModel, error)
 }
 
-type internalContentRetrieverI interface {
+type internalContentRetriever interface {
 	getInternalContent(uuid string) (ContentModel, []Annotation, error)
 }
 
-func NewDataCombiner(docStoreAPIURL, internalContentAPIURL, contentCollectionRWURL string, c utils.Client) DataCombinerI {
-	var cRetriever contentRetrieverI = dataRetriever{docStoreAPIURL, c}
-	var ccRetriever contentRetrieverI = dataRetriever{contentCollectionRWURL, c}
-	var icRetriever internalContentRetrieverI = dataRetriever{internalContentAPIURL, c}
-
-	return DataCombiner{
-		ContentRetriever:           cRetriever,
-		ContentCollectionRetriever: ccRetriever,
-		InternalContentRetriever:   icRetriever,
+func NewDataCombiner(docStoreAPIURL, internalContentAPIURL, contentCollectionRWURL string, client utils.Client) *DataCombiner {
+	return &DataCombiner{
+		contentRetriever: dataRetriever{
+			address: docStoreAPIURL,
+			client:  client,
+		},
+		contentCollectionRetriever: dataRetriever{
+			address: contentCollectionRWURL,
+			client:  client,
+		},
+		internalContentRetriever: dataRetriever{
+			address: internalContentAPIURL,
+			client:  client,
+		},
 	}
 }
 
 func (dc DataCombiner) GetCombinedModelForContent(content ContentModel) (CombinedModel, error) {
 	uuid := content.getUUID()
 	if uuid == "" {
-		return CombinedModel{}, errors.New("content has no UUID provided, can't deduce annotations for it")
+		return CombinedModel{}, fmt.Errorf("content has no UUID provided, can't deduce annotations for it")
 	}
 
-	internalContent, ann, err := dc.InternalContentRetriever.getInternalContent(uuid)
+	internalContent, ann, err := dc.internalContentRetriever.getInternalContent(uuid)
 	if err != nil {
 		return CombinedModel{}, err
 	}
@@ -64,15 +68,14 @@ func (dc DataCombiner) GetCombinedModelForContent(content ContentModel) (Combine
 func (dc DataCombiner) GetCombinedModelForAnnotations(metadata AnnotationsMessage) (CombinedModel, error) {
 	uuid := metadata.getContentUUID()
 	if uuid == "" {
-		return CombinedModel{}, errors.New("annotations have no UUID referenced")
+		return CombinedModel{}, fmt.Errorf("annotations have no UUID referenced")
 	}
 
 	return dc.GetCombinedModel(uuid)
 }
 
 func (dc DataCombiner) GetCombinedModel(uuid string) (CombinedModel, error) {
-	// Get content
-	content, err := dc.ContentRetriever.getContent(uuid)
+	content, err := dc.contentRetriever.getContent(uuid)
 	if err != nil {
 		return CombinedModel{}, err
 	}
@@ -81,14 +84,14 @@ func (dc DataCombiner) GetCombinedModel(uuid string) (CombinedModel, error) {
 	var annotations []Annotation
 	if content.getUUID() != "" {
 		// Internal content is available only if content is available
-		internalContent, annotations, err = dc.InternalContentRetriever.getInternalContent(uuid)
+		internalContent, annotations, err = dc.internalContentRetriever.getInternalContent(uuid)
 		if err != nil {
 			return CombinedModel{}, err
 		}
 	} else {
 		// There is nothing in the document store
 		// try to retrieve data from the content collection store
-		content, err = dc.ContentCollectionRetriever.getContent(uuid)
+		content, err = dc.contentCollectionRetriever.getContent(uuid)
 		if err != nil {
 			return CombinedModel{}, err
 		}
@@ -109,7 +112,7 @@ func (dc DataCombiner) GetCombinedModel(uuid string) (CombinedModel, error) {
 }
 
 type dataRetriever struct {
-	Address string
+	address string
 	client  utils.Client
 }
 
@@ -117,7 +120,7 @@ func (dr dataRetriever) getInternalContent(uuid string) (ContentModel, []Annotat
 	var c map[string]interface{}
 	var ann []Annotation
 
-	b, status, err := utils.ExecuteHTTPRequest(uuid, dr.Address, dr.client)
+	b, status, err := utils.ExecuteHTTPRequest(uuid, dr.address, dr.client)
 	if status == http.StatusNotFound {
 		return c, ann, nil
 	}
@@ -127,7 +130,7 @@ func (dr dataRetriever) getInternalContent(uuid string) (ContentModel, []Annotat
 
 	// Unmarshal as content
 	if err = json.Unmarshal(b, &c); err != nil {
-		return c, ann, fmt.Errorf("could not unmarshal internal content with uuid=%v, error=%v", uuid, err.Error())
+		return c, ann, fmt.Errorf("error unmarshalling internal content: %w", err)
 	}
 	delete(c, "annotations")
 
@@ -135,8 +138,8 @@ func (dr dataRetriever) getInternalContent(uuid string) (ContentModel, []Annotat
 	var annotations struct {
 		Things []Thing `json:"annotations"`
 	}
-	if err := json.Unmarshal(b, &annotations); err != nil {
-		return c, ann, fmt.Errorf("could not unmarshal annotations for internal content with uuid=%v, error=%v", uuid, err.Error())
+	if err = json.Unmarshal(b, &annotations); err != nil {
+		return c, ann, fmt.Errorf("error unmarshalling annotations for internal content: %w", err)
 	}
 	for _, t := range annotations.Things {
 		ann = append(ann, Annotation{t})
@@ -147,7 +150,7 @@ func (dr dataRetriever) getInternalContent(uuid string) (ContentModel, []Annotat
 
 func (dr dataRetriever) getContent(uuid string) (ContentModel, error) {
 	var c map[string]interface{}
-	b, status, err := utils.ExecuteHTTPRequest(uuid, dr.Address, dr.client)
+	b, status, err := utils.ExecuteHTTPRequest(uuid, dr.address, dr.client)
 
 	if status == http.StatusNotFound {
 		return c, nil
@@ -157,8 +160,8 @@ func (dr dataRetriever) getContent(uuid string) (ContentModel, error) {
 		return c, err
 	}
 
-	if err := json.Unmarshal(b, &c); err != nil {
-		return c, fmt.Errorf("could not unmarshal content with uuid=%v, error=%v", uuid, err.Error())
+	if err = json.Unmarshal(b, &c); err != nil {
+		return c, fmt.Errorf("error unmarshalling content: %w", err)
 	}
 
 	return c, nil

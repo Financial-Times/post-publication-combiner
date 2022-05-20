@@ -10,11 +10,11 @@ const (
 )
 
 type RequestProcessor struct {
-	dataCombiner DataCombinerI
+	dataCombiner dataCombiner
 	forwarder    *forwarder
 }
 
-func NewRequestProcessor(dataCombiner DataCombinerI, producer messageProducer, allowedContentTypes []string) *RequestProcessor {
+func NewRequestProcessor(dataCombiner dataCombiner, producer messageProducer, allowedContentTypes []string) *RequestProcessor {
 	return &RequestProcessor{
 		dataCombiner: dataCombiner,
 		forwarder:    newForwarder(producer, allowedContentTypes),

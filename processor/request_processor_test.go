@@ -17,7 +17,7 @@ func TestRequestProcessor_ForcePublication(t *testing.T) {
 	tests := []struct {
 		name            string
 		publishTID      string
-		dataCombiner    DataCombinerI
+		dataCombiner    dataCombiner
 		messageProducer messageProducer
 		err             error
 	}{

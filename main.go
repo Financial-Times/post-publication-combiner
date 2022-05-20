@@ -150,7 +150,7 @@ func main() {
 	log := logger.NewUPPLogger(serviceName, *logLevel)
 
 	app.Action = func() {
-		client := http.Client{
+		client := &http.Client{
 			Transport: &http.Transport{
 				Proxy: http.ProxyFromEnvironment,
 				DialContext: (&net.Dialer{
@@ -173,7 +173,7 @@ func main() {
 			Topic: *contentTopic,
 			Queue: *kafkaProxyRoutingHeader,
 		}
-		cc := processor.NewKafkaConsumer(cConf, messagesCh, &client)
+		cc := processor.NewKafkaConsumer(cConf, messagesCh, client)
 		go cc.Start()
 		defer cc.Stop()
 
@@ -184,7 +184,7 @@ func main() {
 			Topic: *metadataTopic,
 			Queue: *kafkaProxyRoutingHeader,
 		}
-		mc := processor.NewKafkaConsumer(mConf, messagesCh, &client)
+		mc := processor.NewKafkaConsumer(mConf, messagesCh, client)
 		go mc.Start()
 		defer mc.Stop()
 
@@ -192,7 +192,7 @@ func main() {
 		docStoreURL := *docStoreAPIBaseURL + *docStoreAPIEndpoint
 		internalContentURL := *internalContentAPIBaseURL + *internalContentAPIEndpoint
 		contentCollectionURL := *contentCollectionRWBaseURL + *contentCollectionRWEndpoint
-		dataCombiner := processor.NewDataCombiner(docStoreURL, internalContentURL, contentCollectionURL, &client)
+		dataCombiner := processor.NewDataCombiner(docStoreURL, internalContentURL, contentCollectionURL, client)
 
 		producerConfig := kafka.ProducerConfig{
 			BrokersConnectionString: *kafkaAddress,
@@ -221,7 +221,7 @@ func main() {
 		}
 
 		// Since the health check for all producers and consumers just checks /topics for a response, we pick a producer and a consumer at random
-		healthcheckHandler := NewCombinerHealthcheck(log, messageProducer, mc, &client, *docStoreAPIBaseURL, *internalContentAPIBaseURL)
+		healthcheckHandler := NewCombinerHealthcheck(log, messageProducer, mc, client, *docStoreAPIBaseURL, *internalContentAPIBaseURL)
 
 		routeRequests(log, port, reqHandler, healthcheckHandler)
 	}
