@@ -43,13 +43,13 @@ func Test_PublishMessage(t *testing.T) {
 		{
 			uuid:   "a78cf3ea-b221-46f8-8cbc-a61e5e454e88",
 			tid:    "tid_1",
-			err:    processor.NotFoundError,
+			err:    processor.ErrNotFound,
 			status: 404,
 		},
 		{
 			uuid:   "a78cf3ea-b221-46f8-8cbc-a61e5e454e88",
 			tid:    "tid_1",
-			err:    processor.InvalidContentTypeError,
+			err:    processor.ErrInvalidContentType,
 			status: 422,
 		},
 	}

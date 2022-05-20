@@ -148,7 +148,7 @@ func TestRequestProcessor_ForcePublication(t *testing.T) {
 				t:            t,
 				expectedUUID: testUUID,
 			},
-			err: NotFoundError,
+			err: ErrNotFound,
 		},
 		{
 			name: "Content is filtered out",
@@ -163,7 +163,7 @@ func TestRequestProcessor_ForcePublication(t *testing.T) {
 					},
 					Metadata: []Annotation{},
 				}},
-			err: InvalidContentTypeError,
+			err: ErrInvalidContentType,
 		},
 		{
 			name: "Content is not forwarded to queue",

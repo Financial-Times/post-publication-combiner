@@ -32,7 +32,7 @@ func (f *forwarder) filterAndForwardMsg(headers map[string]string, message *Comb
 		contentType := message.Content.getType()
 
 		if !f.isTypeAllowed(contentType) {
-			return fmt.Errorf("%w: %s", InvalidContentTypeError, message.Content.getType())
+			return fmt.Errorf("%w: %s", ErrInvalidContentType, contentType)
 		}
 	}
 

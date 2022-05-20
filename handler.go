@@ -48,12 +48,12 @@ func (h *requestHandler) publishMessage(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		log.WithError(err).Error("Failed message publication")
 
-		if errors.Is(err, processor.NotFoundError) {
+		if errors.Is(err, processor.ErrNotFound) {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
 
-		if errors.Is(err, processor.InvalidContentTypeError) {
+		if errors.Is(err, processor.ErrInvalidContentType) {
 			w.WriteHeader(http.StatusUnprocessableEntity)
 			return
 		}

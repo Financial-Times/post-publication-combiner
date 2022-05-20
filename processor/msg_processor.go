@@ -2,7 +2,7 @@ package processor
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/Financial-Times/go-logger/v2"
@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	NotFoundError           = errors.New("content not found")
-	InvalidContentTypeError = errors.New("invalid content type")
+	ErrNotFound           = fmt.Errorf("content not found")
+	ErrInvalidContentType = fmt.Errorf("invalid content type")
 )
 
 type MsgProcessor struct {

@@ -34,7 +34,7 @@ func (p *RequestProcessor) ForcePublication(uuid string, tid string) error {
 	}
 
 	if message.Content.getUUID() == "" && message.Metadata == nil {
-		return NotFoundError
+		return ErrNotFound
 	}
 
 	return p.forwarder.filterAndForwardMsg(h, &message)
