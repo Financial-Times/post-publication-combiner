@@ -22,52 +22,48 @@ type dataRetriever struct {
 }
 
 func (dr dataRetriever) getInternalContent(uuid string) (ContentModel, []Annotation, error) {
-	var c map[string]interface{}
-	var ann []Annotation
-
 	b, status, err := httputils.ExecuteRequestForUUID(dr.address, uuid, dr.client)
 	if status == http.StatusNotFound {
-		return c, ann, nil
+		return nil, nil, nil
 	}
 	if err != nil {
-		return c, ann, err
+		return nil, nil, err
 	}
 
-	// Unmarshal as content
-	if err = json.Unmarshal(b, &c); err != nil {
-		return c, ann, fmt.Errorf("error unmarshalling internal content: %w", err)
+	var content map[string]interface{}
+	if err = json.Unmarshal(b, &content); err != nil {
+		return nil, nil, fmt.Errorf("error unmarshalling internal content: %w", err)
 	}
-	delete(c, "annotations")
+	delete(content, "annotations")
 
-	// Unmarshal as annotations
 	var annotations struct {
 		Things []Thing `json:"annotations"`
 	}
 	if err = json.Unmarshal(b, &annotations); err != nil {
-		return c, ann, fmt.Errorf("error unmarshalling annotations for internal content: %w", err)
+		return nil, nil, fmt.Errorf("error unmarshalling annotations for internal content: %w", err)
 	}
+
+	var ann []Annotation
 	for _, t := range annotations.Things {
 		ann = append(ann, Annotation{t})
 	}
 
-	return c, ann, nil
+	return content, ann, nil
 }
 
 func (dr dataRetriever) getContent(uuid string) (ContentModel, error) {
-	var c map[string]interface{}
 	b, status, err := httputils.ExecuteRequestForUUID(dr.address, uuid, dr.client)
-
 	if status == http.StatusNotFound {
-		return c, nil
+		return nil, nil
 	}
-
 	if err != nil {
-		return c, err
+		return nil, err
 	}
 
-	if err = json.Unmarshal(b, &c); err != nil {
-		return c, fmt.Errorf("error unmarshalling content: %w", err)
+	var content map[string]interface{}
+	if err = json.Unmarshal(b, &content); err != nil {
+		return nil, fmt.Errorf("error unmarshalling content: %w", err)
 	}
 
-	return c, nil
+	return content, nil
 }
