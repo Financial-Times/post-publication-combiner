@@ -5,7 +5,7 @@ import (
 
 	health "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/go-logger/v2"
-	"github.com/Financial-Times/post-publication-combiner/v2/utils"
+	"github.com/Financial-Times/post-publication-combiner/v2/httputils"
 	"github.com/Financial-Times/service-status-go/gtg"
 )
 
@@ -23,7 +23,7 @@ type messageConsumer interface {
 }
 
 type HealthcheckHandler struct {
-	httpClient                utils.Client
+	httpClient                httputils.Client
 	log                       *logger.UPPLogger
 	producer                  messageProducer
 	consumer                  messageConsumer
@@ -31,7 +31,7 @@ type HealthcheckHandler struct {
 	internalContentAPIBaseURL string
 }
 
-func NewCombinerHealthcheck(log *logger.UPPLogger, p messageProducer, c messageConsumer, client utils.Client, docStoreAPIURL string, internalContentAPIURL string) *HealthcheckHandler {
+func NewCombinerHealthcheck(log *logger.UPPLogger, p messageProducer, c messageConsumer, client httputils.Client, docStoreAPIURL string, internalContentAPIURL string) *HealthcheckHandler {
 	return &HealthcheckHandler{
 		httpClient:                client,
 		log:                       log,
@@ -116,7 +116,7 @@ func gtgCheck(handler func() (string, error)) gtg.Status {
 }
 
 func (h *HealthcheckHandler) checkIfDocumentStoreIsReachable() (string, error) {
-	_, _, err := utils.ExecuteSimpleHTTPRequest(h.docStoreAPIBaseURL+GTGEndpoint, h.httpClient)
+	_, _, err := httputils.ExecuteRequest(h.docStoreAPIBaseURL+GTGEndpoint, h.httpClient)
 	if err != nil {
 		h.log.WithError(err).Error("Healthcheck error")
 		return "", err
@@ -125,7 +125,7 @@ func (h *HealthcheckHandler) checkIfDocumentStoreIsReachable() (string, error) {
 }
 
 func (h *HealthcheckHandler) checkIfInternalContentAPIIsReachable() (string, error) {
-	_, _, err := utils.ExecuteSimpleHTTPRequest(h.internalContentAPIBaseURL+GTGEndpoint, h.httpClient)
+	_, _, err := httputils.ExecuteRequest(h.internalContentAPIBaseURL+GTGEndpoint, h.httpClient)
 	if err != nil {
 		h.log.WithError(err).Error("Healthcheck error")
 		return "", err

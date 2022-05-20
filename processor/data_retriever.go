@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/Financial-Times/post-publication-combiner/v2/utils"
+	"github.com/Financial-Times/post-publication-combiner/v2/httputils"
 )
 
 type contentRetriever interface {
@@ -18,14 +18,14 @@ type internalContentRetriever interface {
 
 type dataRetriever struct {
 	address string
-	client  utils.Client
+	client  httputils.Client
 }
 
 func (dr dataRetriever) getInternalContent(uuid string) (ContentModel, []Annotation, error) {
 	var c map[string]interface{}
 	var ann []Annotation
 
-	b, status, err := utils.ExecuteHTTPRequest(uuid, dr.address, dr.client)
+	b, status, err := httputils.ExecuteRequestForUUID(dr.address, uuid, dr.client)
 	if status == http.StatusNotFound {
 		return c, ann, nil
 	}
@@ -55,7 +55,7 @@ func (dr dataRetriever) getInternalContent(uuid string) (ContentModel, []Annotat
 
 func (dr dataRetriever) getContent(uuid string) (ContentModel, error) {
 	var c map[string]interface{}
-	b, status, err := utils.ExecuteHTTPRequest(uuid, dr.address, dr.client)
+	b, status, err := httputils.ExecuteRequestForUUID(dr.address, uuid, dr.client)
 
 	if status == http.StatusNotFound {
 		return c, nil

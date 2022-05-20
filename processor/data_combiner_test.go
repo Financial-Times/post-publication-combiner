@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Financial-Times/post-publication-combiner/v2/utils"
+	"github.com/Financial-Times/post-publication-combiner/v2/httputils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -899,7 +899,7 @@ func TestGetCombinedModel(t *testing.T) {
 func TestGetInternalContent(t *testing.T) {
 	tests := []struct {
 		name           string
-		dc             utils.Client
+		dc             httputils.Client
 		expContent     ContentModel
 		expAnnotations []Annotation
 		expError       string
@@ -1128,7 +1128,7 @@ func TestGetInternalContent(t *testing.T) {
 func TestGetContent(t *testing.T) {
 	tests := []struct {
 		name       string
-		dc         utils.Client
+		dc         httputils.Client
 		expContent ContentModel
 		expError   string
 	}{

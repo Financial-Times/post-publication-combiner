@@ -3,7 +3,7 @@ package processor
 import (
 	"fmt"
 
-	"github.com/Financial-Times/post-publication-combiner/v2/utils"
+	"github.com/Financial-Times/post-publication-combiner/v2/httputils"
 )
 
 type dataCombiner interface {
@@ -18,7 +18,7 @@ type DataCombiner struct {
 	internalContentRetriever   internalContentRetriever
 }
 
-func NewDataCombiner(docStoreAPIURL, internalContentAPIURL, contentCollectionRWURL string, client utils.Client) *DataCombiner {
+func NewDataCombiner(docStoreAPIURL, internalContentAPIURL, contentCollectionRWURL string, client httputils.Client) *DataCombiner {
 	return &DataCombiner{
 		contentRetriever: dataRetriever{
 			address: docStoreAPIURL,

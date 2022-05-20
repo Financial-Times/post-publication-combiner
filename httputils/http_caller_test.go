@@ -1,4 +1,4 @@
-package utils
+package httputils
 
 import (
 	"fmt"
@@ -76,7 +76,7 @@ func TestExecuteHTTPRequest(t *testing.T) {
 	}
 
 	for _, testCase := range tests {
-		b, s, err := executeHTTPRequest(testCase.url, &testCase.dc)
+		b, s, err := executeRequest(testCase.url, &testCase.dc)
 
 		if err != nil {
 			assert.Contains(t, err.Error(), testCase.expErrStr)
