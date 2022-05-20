@@ -15,7 +15,6 @@ import (
 	"github.com/Financial-Times/kafka-client-go/v2"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"github.com/Financial-Times/post-publication-combiner/v2/processor"
-	"github.com/Financial-Times/post-publication-combiner/v2/utils"
 	status "github.com/Financial-Times/service-status-go/httphandlers"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -190,9 +189,10 @@ func main() {
 		defer mc.Stop()
 
 		// process and forward messages
-		dataCombiner := processor.NewDataCombiner(utils.ApiURL{BaseURL: *docStoreAPIBaseURL, Endpoint: *docStoreAPIEndpoint},
-			utils.ApiURL{BaseURL: *internalContentAPIBaseURL, Endpoint: *internalContentAPIEndpoint},
-			utils.ApiURL{BaseURL: *contentCollectionRWBaseURL, Endpoint: *contentCollectionRWEndpoint}, &client)
+		docStoreURL := *docStoreAPIBaseURL + *docStoreAPIEndpoint
+		internalContentURL := *internalContentAPIBaseURL + *internalContentAPIEndpoint
+		contentCollectionURL := *contentCollectionRWBaseURL + *contentCollectionRWEndpoint
+		dataCombiner := processor.NewDataCombiner(docStoreURL, internalContentURL, contentCollectionURL, &client)
 
 		producerConfig := kafka.ProducerConfig{
 			BrokersConnectionString: *kafkaAddress,

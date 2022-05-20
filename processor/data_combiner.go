@@ -29,10 +29,10 @@ type internalContentRetrieverI interface {
 	getInternalContent(uuid string) (ContentModel, []Annotation, error)
 }
 
-func NewDataCombiner(docStoreAPIUrl utils.ApiURL, internalContentAPIUrl utils.ApiURL, contentCollectionRWUrl utils.ApiURL, c utils.Client) DataCombinerI {
-	var cRetriever contentRetrieverI = dataRetriever{docStoreAPIUrl, c}
-	var ccRetriever contentRetrieverI = dataRetriever{contentCollectionRWUrl, c}
-	var icRetriever internalContentRetrieverI = dataRetriever{internalContentAPIUrl, c}
+func NewDataCombiner(docStoreAPIURL, internalContentAPIURL, contentCollectionRWURL string, c utils.Client) DataCombinerI {
+	var cRetriever contentRetrieverI = dataRetriever{docStoreAPIURL, c}
+	var ccRetriever contentRetrieverI = dataRetriever{contentCollectionRWURL, c}
+	var icRetriever internalContentRetrieverI = dataRetriever{internalContentAPIURL, c}
 
 	return DataCombiner{
 		ContentRetriever:           cRetriever,
@@ -109,7 +109,7 @@ func (dc DataCombiner) GetCombinedModel(uuid string) (CombinedModel, error) {
 }
 
 type dataRetriever struct {
-	Address utils.ApiURL
+	Address string
 	client  utils.Client
 }
 

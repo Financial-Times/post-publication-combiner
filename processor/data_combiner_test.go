@@ -1115,7 +1115,7 @@ func TestGetInternalContent(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			dr := dataRetriever{utils.ApiURL{BaseURL: "some_host", Endpoint: "some_endpoint"}, testCase.dc}
+			dr := dataRetriever{"some_host/some_endpoint", testCase.dc}
 			c, ann, err := dr.getInternalContent("some_uuid")
 			assert.Equal(t, testCase.expAnnotations, ann,
 				fmt.Sprintf("Expected annotations: %v were not equal with received ones: %v \n", testCase.expAnnotations, ann))
@@ -1231,7 +1231,7 @@ func TestGetContent(t *testing.T) {
 
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
-			dr := dataRetriever{utils.ApiURL{BaseURL: "some_host", Endpoint: "some_endpoint"}, testCase.dc}
+			dr := dataRetriever{"some_host/some_endpoint", testCase.dc}
 			c, err := dr.getContent("some_uuid")
 
 			assert.True(t, reflect.DeepEqual(testCase.expContent, c), fmt.Sprintf("Expected content: %v was not equal with received content: %v \n", testCase.expContent, c))
@@ -1255,7 +1255,7 @@ type dummyClient struct {
 	err        error
 }
 
-func (c dummyClient) Do(req *http.Request) (*http.Response, error) {
+func (c dummyClient) Do(*http.Request) (*http.Response, error) {
 	resp := &http.Response{
 		StatusCode: c.statusCode,
 		Body:       ioutil.NopCloser(strings.NewReader(c.body)),

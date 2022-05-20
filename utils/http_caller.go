@@ -3,23 +3,15 @@ package utils
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 )
-
-type ApiURL struct {
-	BaseURL  string
-	Endpoint string
-}
 
 type Client interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-func ExecuteHTTPRequest(uuid string, apiUrl ApiURL, httpClient Client) (b []byte, status int, err error) {
-	urlStr := apiUrl.BaseURL + apiUrl.Endpoint
-
+func ExecuteHTTPRequest(uuid string, urlStr string, httpClient Client) (b []byte, status int, err error) {
 	if uuid != "" {
 		urlStr = strings.Replace(urlStr, "{uuid}", uuid, -1)
 	}
@@ -43,7 +35,7 @@ func executeHTTPRequest(urlStr string, httpClient Client) (b []byte, status int,
 	}
 
 	defer func() {
-		_, _ = io.Copy(ioutil.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, resp.Body)
 		_ = resp.Body.Close()
 	}()
 
@@ -51,7 +43,7 @@ func executeHTTPRequest(urlStr string, httpClient Client) (b []byte, status int,
 		return nil, resp.StatusCode, fmt.Errorf("request to %q failed with status: %d", urlStr, resp.StatusCode)
 	}
 
-	b, err = ioutil.ReadAll(resp.Body)
+	b, err = io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, http.StatusOK, fmt.Errorf("error parsing payload from response for url %q: %w", urlStr, err)
 	}
