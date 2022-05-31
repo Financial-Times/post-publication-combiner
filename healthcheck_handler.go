@@ -116,7 +116,7 @@ func gtgCheck(handler func() (string, error)) gtg.Status {
 }
 
 func (h *HealthcheckHandler) checkIfDocumentStoreIsReachable() (string, error) {
-	_, _, err := httputils.ExecuteRequest(h.docStoreAPIBaseURL+GTGEndpoint, h.httpClient)
+	_, err := httputils.ExecuteRequest(h.docStoreAPIBaseURL+GTGEndpoint, h.httpClient)
 	if err != nil {
 		h.log.WithError(err).Error("Healthcheck error")
 		return "", err
@@ -125,7 +125,7 @@ func (h *HealthcheckHandler) checkIfDocumentStoreIsReachable() (string, error) {
 }
 
 func (h *HealthcheckHandler) checkIfInternalContentAPIIsReachable() (string, error) {
-	_, _, err := httputils.ExecuteRequest(h.internalContentAPIBaseURL+GTGEndpoint, h.httpClient)
+	_, err := httputils.ExecuteRequest(h.internalContentAPIBaseURL+GTGEndpoint, h.httpClient)
 	if err != nil {
 		h.log.WithError(err).Error("Healthcheck error")
 		return "", err

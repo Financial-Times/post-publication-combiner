@@ -27,29 +27,26 @@ func (c *dummyClient) Do(*http.Request) (*http.Response, error) {
 
 func TestExecuteHTTPRequest(t *testing.T) {
 	tests := []struct {
-		dc            dummyClient
-		url           string
-		expRespBody   []byte
-		expRespStatus int
-		expErrStr     string
+		dc          dummyClient
+		url         string
+		expRespBody []byte
+		expErrStr   string
 	}{
 		{
 			dc: dummyClient{
 				body: "hey",
 			},
-			url:           "one malformed:url",
-			expRespBody:   nil,
-			expRespStatus: -1,
-			expErrStr:     "error creating request for url \"one malformed:url\"",
+			url:         "one malformed:url",
+			expRespBody: nil,
+			expErrStr:   "error creating request for url \"one malformed:url\"",
 		},
 		{
 			dc: dummyClient{
 				err: fmt.Errorf("some error"),
 			},
-			url:           "url",
-			expRespBody:   nil,
-			expRespStatus: -1,
-			expErrStr:     "error executing request for url \"url\": some error",
+			url:         "url",
+			expRespBody: nil,
+			expErrStr:   "error executing request for url \"url\": some error",
 		},
 		{
 			dc: dummyClient{
@@ -57,10 +54,9 @@ func TestExecuteHTTPRequest(t *testing.T) {
 				body:       "simple body",
 				err:        nil,
 			},
-			url:           "url",
-			expRespBody:   nil,
-			expRespStatus: http.StatusNotFound,
-			expErrStr:     fmt.Sprintf("request to \"url\" failed with status: %d", http.StatusNotFound),
+			url:         "url",
+			expRespBody: nil,
+			expErrStr:   fmt.Sprintf("request to \"url\" failed with status: %d", http.StatusNotFound),
 		},
 		{
 			dc: dummyClient{
@@ -68,15 +64,14 @@ func TestExecuteHTTPRequest(t *testing.T) {
 				body:       "simple body",
 				err:        nil,
 			},
-			url:           "url",
-			expRespBody:   []byte("simple body"),
-			expRespStatus: http.StatusOK,
-			expErrStr:     "",
+			url:         "url",
+			expRespBody: []byte("simple body"),
+			expErrStr:   "",
 		},
 	}
 
 	for _, testCase := range tests {
-		b, s, err := executeRequest(testCase.url, &testCase.dc)
+		b, err := ExecuteRequest(testCase.url, &testCase.dc)
 
 		if err != nil {
 			assert.Contains(t, err.Error(), testCase.expErrStr)
@@ -85,6 +80,5 @@ func TestExecuteHTTPRequest(t *testing.T) {
 		}
 
 		assert.Equal(t, testCase.expRespBody, b)
-		assert.Equal(t, testCase.expRespStatus, s)
 	}
 }

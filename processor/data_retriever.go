@@ -2,8 +2,10 @@ package processor
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/Financial-Times/post-publication-combiner/v2/httputils"
 )
@@ -22,11 +24,15 @@ type dataRetriever struct {
 }
 
 func (dr dataRetriever) getInternalContent(uuid string) (ContentModel, []Annotation, error) {
-	b, status, err := httputils.ExecuteRequestForUUID(dr.address, uuid, dr.client)
-	if status == http.StatusNotFound {
-		return nil, nil, nil
-	}
+	uri := transformContentURI(dr.address, uuid)
+
+	b, err := httputils.ExecuteRequest(uri, dr.client)
 	if err != nil {
+		var codeError *httputils.StatusCodeError
+		if errors.As(err, &codeError) && codeError.StatusCode == http.StatusNotFound {
+			return nil, nil, nil
+		}
+
 		return nil, nil, err
 	}
 
@@ -52,11 +58,15 @@ func (dr dataRetriever) getInternalContent(uuid string) (ContentModel, []Annotat
 }
 
 func (dr dataRetriever) getContent(uuid string) (ContentModel, error) {
-	b, status, err := httputils.ExecuteRequestForUUID(dr.address, uuid, dr.client)
-	if status == http.StatusNotFound {
-		return nil, nil
-	}
+	uri := transformContentURI(dr.address, uuid)
+
+	b, err := httputils.ExecuteRequest(uri, dr.client)
 	if err != nil {
+		var codeError *httputils.StatusCodeError
+		if errors.As(err, &codeError) && codeError.StatusCode == http.StatusNotFound {
+			return nil, nil
+		}
+
 		return nil, err
 	}
 
@@ -66,4 +76,12 @@ func (dr dataRetriever) getContent(uuid string) (ContentModel, error) {
 	}
 
 	return content, nil
+}
+
+func transformContentURI(url, uuid string) string {
+	if uuid != "" {
+		return strings.Replace(url, "{uuid}", uuid, -1)
+	}
+
+	return url
 }
