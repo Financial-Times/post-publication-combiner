@@ -712,7 +712,7 @@ func TestGetCombinedModel(t *testing.T) {
 		retrievedContentCollection    ContentModel
 		retrievedContentCollectionErr error
 		expModel                      CombinedModel
-		expError                      error
+		expError                      string
 	}{
 		{
 			name:                       "content not found",
@@ -729,7 +729,7 @@ func TestGetCombinedModel(t *testing.T) {
 			name:                          "content collection retrieval error",
 			retrievedContent:              ContentModel{},
 			retrievedContentCollectionErr: fmt.Errorf("some content collection retrieval error"),
-			expError:                      fmt.Errorf("some content collection retrieval error"),
+			expError:                      "some content collection retrieval error",
 		},
 		{
 			name:             "valid content collection",
@@ -872,7 +872,7 @@ func TestGetCombinedModel(t *testing.T) {
 					},
 				},
 			},
-			expError: nil,
+			expError: "",
 		},
 	}
 
@@ -887,10 +887,10 @@ func TestGetCombinedModel(t *testing.T) {
 			m, err := combiner.GetCombinedModel("some-uuid")
 			assert.Equal(t, testCase.expModel, m,
 				fmt.Sprintf("Expected model: %v was not equal with the received one: %v \n", testCase.expModel, m))
-			if testCase.expError == nil {
-				assert.Equal(t, nil, err)
+			if testCase.expError == "" {
+				assert.NoError(t, err)
 			} else {
-				assert.Contains(t, err.Error(), testCase.expError.Error())
+				assert.EqualError(t, err, testCase.expError)
 			}
 		})
 	}
@@ -920,7 +920,7 @@ func TestGetInternalContent(t *testing.T) {
 			},
 			expContent:     nil,
 			expAnnotations: []Annotation(nil), //empty value for a slice
-			expError:       "error executing request for url \"some_host/some_endpoint\": some error",
+			expError:       "error executing request for url",
 		},
 		{
 			name: "internal content - invalid body",
@@ -930,7 +930,7 @@ func TestGetInternalContent(t *testing.T) {
 			},
 			expContent:     nil,
 			expAnnotations: []Annotation(nil),
-			expError:       "error unmarshalling internal content: invalid character 'e' in literal true (expecting 'r')",
+			expError:       "error unmarshalling internal content",
 		},
 		{
 			name: "internal content - valid body",
@@ -1117,7 +1117,7 @@ func TestGetInternalContent(t *testing.T) {
 			if testCase.expError == "" {
 				assert.NoError(t, err)
 			} else {
-				assert.EqualError(t, err, testCase.expError)
+				assert.Contains(t, err.Error(), testCase.expError)
 			}
 
 			assert.True(t, reflect.DeepEqual(testCase.expContent, c))
@@ -1146,7 +1146,7 @@ func TestGetContent(t *testing.T) {
 				err: fmt.Errorf("some error"),
 			},
 			expContent: nil,
-			expError:   "error executing request for url \"some_host/some_endpoint\": some error",
+			expError:   "error executing request for url",
 		},
 		{
 			name: "content - invalid body",
@@ -1155,7 +1155,7 @@ func TestGetContent(t *testing.T) {
 				body:       "text that can't be unmarshalled",
 			},
 			expContent: nil,
-			expError:   "error unmarshalling content: invalid character 'e' in literal true (expecting 'r')",
+			expError:   "error unmarshalling content",
 		},
 		{
 			name: "content - valid",
@@ -1223,7 +1223,7 @@ func TestGetContent(t *testing.T) {
 			if testCase.expError == "" {
 				assert.NoError(t, err)
 			} else {
-				assert.EqualError(t, err, testCase.expError)
+				assert.Contains(t, err.Error(), testCase.expError)
 			}
 		})
 	}
