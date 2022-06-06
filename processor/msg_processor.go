@@ -2,7 +2,7 @@ package processor
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/Financial-Times/go-logger/v2"
@@ -11,15 +11,15 @@ import (
 )
 
 var (
-	NotFoundError           = errors.New("content not found") // used when the content can not be found by the platform
-	InvalidContentTypeError = errors.New("invalid content type")
+	ErrNotFound           = fmt.Errorf("content not found")
+	ErrInvalidContentType = fmt.Errorf("invalid content type")
 )
 
 type MsgProcessor struct {
-	src          <-chan *KafkaQMessage
+	src          <-chan *KafkaMessage
 	config       MsgProcessorConfig
-	dataCombiner DataCombinerI
-	forwarder    Forwarder
+	dataCombiner dataCombiner
+	forwarder    *forwarder
 	log          *logger.UPPLogger
 }
 
@@ -30,7 +30,7 @@ type MsgProcessorConfig struct {
 	MetadataTopic        string
 }
 
-func NewMsgProcessorConfig(supportedURIs []string, supportedHeaders []string, contentTopic string, metadataTopic string) MsgProcessorConfig {
+func NewMsgProcessorConfig(supportedURIs, supportedHeaders []string, contentTopic, metadataTopic string) MsgProcessorConfig {
 	return MsgProcessorConfig{
 		SupportedContentURIs: supportedURIs,
 		SupportedHeaders:     supportedHeaders,
@@ -39,12 +39,12 @@ func NewMsgProcessorConfig(supportedURIs []string, supportedHeaders []string, co
 	}
 }
 
-func NewMsgProcessor(log *logger.UPPLogger, srcCh <-chan *KafkaQMessage, config MsgProcessorConfig, dataCombiner DataCombinerI, producer messageProducer, whitelistedContentTypes []string) *MsgProcessor {
+func NewMsgProcessor(log *logger.UPPLogger, srcCh <-chan *KafkaMessage, config MsgProcessorConfig, dataCombiner dataCombiner, producer messageProducer, whitelistedContentTypes []string) *MsgProcessor {
 	return &MsgProcessor{
 		src:          srcCh,
 		config:       config,
 		dataCombiner: dataCombiner,
-		forwarder:    NewForwarder(log, producer, whitelistedContentTypes),
+		forwarder:    newForwarder(producer, whitelistedContentTypes),
 		log:          log,
 	}
 }
@@ -52,10 +52,10 @@ func NewMsgProcessor(log *logger.UPPLogger, srcCh <-chan *KafkaQMessage, config 
 func (p *MsgProcessor) ProcessMessages() {
 	for {
 		m := <-p.src
-		if m.msgType == p.config.ContentTopic {
-			p.processContentMsg(m.msg)
-		} else if m.msgType == p.config.MetadataTopic {
-			p.processMetadataMsg(m.msg)
+		if m.topic == p.config.ContentTopic {
+			p.processContentMsg(m.message)
+		} else if m.topic == p.config.MetadataTopic {
+			p.processMetadataMsg(m.message)
 		}
 	}
 }
@@ -64,25 +64,30 @@ func (p *MsgProcessor) processContentMsg(m consumer.Message) {
 	tid := p.extractTID(m.Headers)
 	m.Headers["X-Request-Id"] = tid
 
+	log := p.log.
+		WithTransactionID(tid).
+		WithField("processor", "content")
+
 	//parse message - collect data, then forward it to the next queue
 	var cm ContentMessage
-	b := []byte(m.Body)
-	if err := json.Unmarshal(b, &cm); err != nil {
-		p.log.WithTransactionID(tid).WithError(err).Errorf("Could not unmarshal message with TID=%v", tid)
+	if err := json.Unmarshal([]byte(m.Body), &cm); err != nil {
+		log.WithError(err).Error("Could not unmarshal message")
 		return
 	}
 
 	// next-video, upp-content-validator - the system origin is not enough to help us filtering. Filter by contentUri.
 	if !containsSubstringOf(p.config.SupportedContentURIs, cm.ContentURI) {
-		p.log.WithTransactionID(tid).Infof("%v - Skipped unsupported content with contentUri: %v. ", tid, cm.ContentURI)
+		log.WithField("contentUri", cm.ContentURI).Info("Skipped content with unsupported contentUri")
 		return
 	}
 
 	uuid := cm.ContentModel.getUUID()
 	if uuid == "" {
-		p.log.WithTransactionID(tid).Errorf("UUID not found after message marshalling, skipping message with contentUri=%v.", cm.ContentURI)
+		log.WithField("contentUri", cm.ContentURI).Error("Content UUID was not found. Message will be skipped.")
 		return
 	}
+
+	log = log.WithUUID(uuid)
 
 	var combinedMSG CombinedModel
 
@@ -95,17 +100,19 @@ func (p *MsgProcessor) processContentMsg(m consumer.Message) {
 		var err error
 		combinedMSG, err = p.dataCombiner.GetCombinedModelForContent(cm.ContentModel)
 		if err != nil {
-			p.log.WithTransactionID(tid).
-				WithUUID(cm.ContentModel.getUUID()).
-				WithError(err).
-				Errorf("%v - Error obtaining the combined message. Metadata could not be read. Message will be skipped.", tid)
+			log.WithError(err).Error("Error obtaining the combined message. Metadata could not be read. Message will be skipped.")
 			return
 		}
 
 		combinedMSG.ContentURI = cm.ContentURI
 	}
 
-	_ = p.forwarder.filterAndForwardMsg(m.Headers, &combinedMSG, tid)
+	if err := p.forwarder.filterAndForwardMsg(m.Headers, &combinedMSG); err != nil {
+		log.WithError(err).Error("Failed to forward message to Kafka")
+		return
+	}
+
+	log.Info("Message successfully forwarded")
 }
 
 func (p *MsgProcessor) processMetadataMsg(m consumer.Message) {
@@ -113,41 +120,49 @@ func (p *MsgProcessor) processMetadataMsg(m consumer.Message) {
 	m.Headers["X-Request-Id"] = tid
 	h := m.Headers["Origin-System-Id"]
 
-	//decide based on the origin system header - whether you want to process the message or not
+	log := p.log.
+		WithTransactionID(tid).
+		WithField("processor", "metadata")
+
 	if !containsSubstringOf(p.config.SupportedHeaders, h) {
-		p.log.WithTransactionID(tid).Infof("%v - Skipped unsupported annotations with Origin-System-Id: %v. ", tid, h)
+		log.WithField("originSystem", h).Info("Skipped annotations with unsupported Origin-System-Id")
 		return
 	}
 
-	//parse message - collect data, then forward it to the next queue
 	var ann AnnotationsMessage
-	b := []byte(m.Body)
-	if err := json.Unmarshal(b, &ann); err != nil {
-		p.log.WithTransactionID(tid).WithError(err).Errorf("Could not unmarshal message with TID=%v", tid)
+	if err := json.Unmarshal([]byte(m.Body), &ann); err != nil {
+		log.WithError(err).Error("Could not unmarshal message")
 		return
 	}
 
-	//combine data
 	combinedMSG, err := p.dataCombiner.GetCombinedModelForAnnotations(ann)
 	if err != nil {
-		p.log.WithTransactionID(tid).WithError(err).Errorf("%v - Error obtaining the combined message. Content couldn't get read. Message will be skipped.", tid)
-		return
-	}
-	if combinedMSG.Content.getUUID() == "" {
-		p.log.WithTransactionID(tid).Warnf("%v - Skipped. Could not find content when processing an annotations publish event.", tid)
+		log.WithError(err).Error("Error obtaining the combined message. Content couldn't get read. Message will be skipped.")
 		return
 	}
 
-	_ = p.forwarder.filterAndForwardMsg(m.Headers, &combinedMSG, tid)
+	uuid := combinedMSG.Content.getUUID()
+	if uuid == "" {
+		log.Warn("Skipped. Could not find content when processing an annotations publish event.")
+		return
+	}
+
+	log = log.WithUUID(uuid)
+
+	if err = p.forwarder.filterAndForwardMsg(m.Headers, &combinedMSG); err != nil {
+		log.WithError(err).Error("Failed to forward message to Kafka")
+		return
+	}
+
+	log.Info("Message successfully forwarded")
 }
 
 func (p *MsgProcessor) extractTID(headers map[string]string) string {
 	tid := headers["X-Request-Id"]
 
 	if tid == "" {
-		p.log.Infof("Couldn't extract transaction id - X-Request-Id header could not be found.")
 		tid = "tid_" + uniuri.NewLen(10) + "_post_publication_combiner"
-		p.log.Infof("Generated tid: %s", tid)
+		p.log.Infof("X-Request-Id header was not be found. Generated tid: %s", tid)
 	}
 
 	return tid

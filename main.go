@@ -15,7 +15,6 @@ import (
 	"github.com/Financial-Times/kafka-client-go/v2"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"github.com/Financial-Times/post-publication-combiner/v2/processor"
-	"github.com/Financial-Times/post-publication-combiner/v2/utils"
 	status "github.com/Financial-Times/service-status-go/httphandlers"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -93,7 +92,6 @@ func main() {
 		Desc:   "Kafka proxy header - used for vulcan routing.",
 		EnvVar: "KAFKA_PROXY_HOST_HEADER",
 	})
-
 	docStoreAPIBaseURL := app.String(cli.StringOpt{
 		Name:   "docStoreApiBaseURL",
 		Value:  "http://localhost:8080/__document-store-api",
@@ -152,7 +150,7 @@ func main() {
 	log := logger.NewUPPLogger(serviceName, *logLevel)
 
 	app.Action = func() {
-		client := http.Client{
+		client := &http.Client{
 			Transport: &http.Transport{
 				Proxy: http.ProxyFromEnvironment,
 				DialContext: (&net.Dialer{
@@ -166,7 +164,7 @@ func main() {
 		}
 
 		// create channel for holding the post publication content and metadata messages
-		messagesCh := make(chan *processor.KafkaQMessage, 100)
+		messagesCh := make(chan *processor.KafkaMessage, 100)
 
 		// consume messages from content queue
 		cConf := consumer.QueueConfig{
@@ -175,9 +173,9 @@ func main() {
 			Topic: *contentTopic,
 			Queue: *kafkaProxyRoutingHeader,
 		}
-		cc := processor.NewKafkaQConsumer(cConf, messagesCh, &client)
-		go cc.Consumer.Start()
-		defer cc.Consumer.Stop()
+		cc := processor.NewKafkaConsumer(cConf, messagesCh, client)
+		go cc.Start()
+		defer cc.Stop()
 
 		// consume messages from metadata queue
 		mConf := consumer.QueueConfig{
@@ -186,14 +184,15 @@ func main() {
 			Topic: *metadataTopic,
 			Queue: *kafkaProxyRoutingHeader,
 		}
-		mc := processor.NewKafkaQConsumer(mConf, messagesCh, &client)
-		go mc.Consumer.Start()
-		defer mc.Consumer.Stop()
+		mc := processor.NewKafkaConsumer(mConf, messagesCh, client)
+		go mc.Start()
+		defer mc.Stop()
 
 		// process and forward messages
-		dataCombiner := processor.NewDataCombiner(utils.ApiURL{BaseURL: *docStoreAPIBaseURL, Endpoint: *docStoreAPIEndpoint},
-			utils.ApiURL{BaseURL: *internalContentAPIBaseURL, Endpoint: *internalContentAPIEndpoint},
-			utils.ApiURL{BaseURL: *contentCollectionRWBaseURL, Endpoint: *contentCollectionRWEndpoint}, &client)
+		docStoreURL := *docStoreAPIBaseURL + *docStoreAPIEndpoint
+		internalContentURL := *internalContentAPIBaseURL + *internalContentAPIEndpoint
+		contentCollectionURL := *contentCollectionRWBaseURL + *contentCollectionRWEndpoint
+		dataCombiner := processor.NewDataCombiner(docStoreURL, internalContentURL, contentCollectionURL, client)
 
 		producerConfig := kafka.ProducerConfig{
 			BrokersConnectionString: *kafkaAddress,
@@ -214,7 +213,7 @@ func main() {
 		}
 		forcedMessageProducer := kafka.NewProducer(forcedProducerConfig, log, 0, time.Minute)
 
-		requestProcessor := processor.NewRequestProcessor(log, dataCombiner, forcedMessageProducer, *whitelistedContentTypes)
+		requestProcessor := processor.NewRequestProcessor(dataCombiner, forcedMessageProducer, *whitelistedContentTypes)
 
 		reqHandler := &requestHandler{
 			requestProcessor: requestProcessor,
@@ -222,7 +221,7 @@ func main() {
 		}
 
 		// Since the health check for all producers and consumers just checks /topics for a response, we pick a producer and a consumer at random
-		healthcheckHandler := NewCombinerHealthcheck(log, messageProducer, mc.Consumer, &client, *docStoreAPIBaseURL, *internalContentAPIBaseURL)
+		healthcheckHandler := NewCombinerHealthcheck(log, messageProducer, mc, client, *docStoreAPIBaseURL, *internalContentAPIBaseURL)
 
 		routeRequests(log, port, reqHandler, healthcheckHandler)
 	}
@@ -262,7 +261,7 @@ func routeRequests(log *logger.UPPLogger, port *string, requestHandler *requestH
 	r.Handle("/__health", handlers.MethodHandler{"GET": http.HandlerFunc(health.Handler(hc))})
 
 	servicesRouter := mux.NewRouter()
-	servicesRouter.HandleFunc("/{id}", requestHandler.postMessage).Methods("POST")
+	servicesRouter.HandleFunc("/{id}", requestHandler.publishMessage).Methods("POST")
 
 	var monitoringRouter http.Handler = servicesRouter
 	monitoringRouter = httphandlers.TransactionAwareRequestLoggingHandler(log, monitoringRouter)

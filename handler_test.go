@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -11,29 +10,58 @@ import (
 	"github.com/Financial-Times/post-publication-combiner/v2/processor"
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestPostMessage(t *testing.T) {
-
+func Test_PublishMessage(t *testing.T) {
 	tests := []struct {
 		uuid   string
 		tid    string
 		err    error
 		status int
 	}{
-		{"a78cf3ea-b221-46f8-8cbc-a61e5e454e88", "tid_1", nil, 200},
-		{"a78cf3ea-b221-46f8-8cbc-a61e5e454e88", "", nil, 200},
-		{"invalid", "tid_1", nil, 400},
-		{"a78cf3ea-b221-46f8-8cbc-a61e5e454e88", "tid_1", errors.New("test error"), 500},
-		{"a78cf3ea-b221-46f8-8cbc-a61e5e454e88", "tid_1", processor.NotFoundError, 404},
-		{"a78cf3ea-b221-46f8-8cbc-a61e5e454e88", "tid_1", processor.InvalidContentTypeError, 422},
+		{
+			uuid:   "a78cf3ea-b221-46f8-8cbc-a61e5e454e88",
+			tid:    "tid_1",
+			status: 200,
+		},
+		{
+			uuid:   "a78cf3ea-b221-46f8-8cbc-a61e5e454e88",
+			status: 200,
+		},
+		{
+			uuid:   "invalid",
+			tid:    "tid_1",
+			status: 400,
+		},
+		{
+			uuid:   "a78cf3ea-b221-46f8-8cbc-a61e5e454e88",
+			tid:    "tid_1",
+			err:    fmt.Errorf("test error"),
+			status: 500,
+		},
+		{
+			uuid:   "a78cf3ea-b221-46f8-8cbc-a61e5e454e88",
+			tid:    "tid_1",
+			err:    processor.ErrNotFound,
+			status: 404,
+		},
+		{
+			uuid:   "a78cf3ea-b221-46f8-8cbc-a61e5e454e88",
+			tid:    "tid_1",
+			err:    processor.ErrInvalidContentType,
+			status: 422,
+		},
 	}
 
-	dummyRequestProcessor := &DummyRequestProcessor{t: t}
+	requestProcessor := &DummyRequestProcessor{t: t}
 
-	rh := requestHandler{requestProcessor: dummyRequestProcessor, log: logger.NewUPPLogger("TEST", "PANIC")}
+	rh := requestHandler{
+		requestProcessor: requestProcessor,
+		log:              logger.NewUPPLogger("TEST", "PANIC"),
+	}
 	servicesRouter := mux.NewRouter()
-	servicesRouter.HandleFunc("/{id}", rh.postMessage).Methods("POST")
+	servicesRouter.HandleFunc("/{id}", rh.publishMessage).Methods("POST")
 
 	r := http.NewServeMux()
 	r.Handle("/", servicesRouter)
@@ -43,17 +71,18 @@ func TestPostMessage(t *testing.T) {
 	defer server.Close()
 
 	for _, testCase := range tests {
-		dummyRequestProcessor.uuid = testCase.uuid
-		dummyRequestProcessor.tid = testCase.tid
-		dummyRequestProcessor.err = testCase.err
+		requestProcessor.uuid = testCase.uuid
+		requestProcessor.tid = testCase.tid
+		requestProcessor.err = testCase.err
 
 		req, err := http.NewRequest("POST", fmt.Sprintf("%s/%s", server.URL, testCase.uuid), nil)
-		assert.NoError(t, err)
+		require.NoError(t, err)
+
 		req.Header.Add("X-Request-Id", testCase.tid)
 
 		resp, err := http.DefaultClient.Do(req)
-		assert.NoError(t, err)
-		resp.Body.Close()
+		require.NoError(t, err)
+		assert.NoError(t, resp.Body.Close())
 
 		assert.Equal(t, testCase.status, resp.StatusCode)
 	}
@@ -66,8 +95,12 @@ type DummyRequestProcessor struct {
 	err  error
 }
 
-func (p *DummyRequestProcessor) ForceMessagePublish(uuid, tid string) error {
+func (p *DummyRequestProcessor) ForcePublication(uuid, tid string) error {
 	assert.Equal(p.t, p.uuid, uuid)
-	assert.Equal(p.t, p.tid, tid)
+	if p.tid == "" {
+		assert.NotEmpty(p.t, tid)
+	} else {
+		assert.Equal(p.t, p.tid, tid)
+	}
 	return p.err
 }

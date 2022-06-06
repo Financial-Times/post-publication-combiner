@@ -1,32 +1,23 @@
 package processor
 
 import (
-	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"net/http"
+
+	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 )
 
-type QConsumer interface {
-	ProcessMsg(m consumer.Message)
+type KafkaMessage struct {
+	topic   string
+	message consumer.Message
 }
 
-type KafkaQConsumer struct {
-	Consumer consumer.MessageConsumer
-	dest     chan<- *KafkaQMessage
-	msgType  string
-}
+func NewKafkaConsumer(config consumer.QueueConfig, ch chan<- *KafkaMessage, client *http.Client) consumer.MessageConsumer {
+	messageHandler := func(message consumer.Message) {
+		ch <- &KafkaMessage{
+			topic:   config.Topic,
+			message: message,
+		}
+	}
 
-type KafkaQMessage struct {
-	msgType string
-	msg     consumer.Message
-}
-
-func NewKafkaQConsumer(cConf consumer.QueueConfig, ch chan<- *KafkaQMessage, client *http.Client) *KafkaQConsumer {
-
-	kc := KafkaQConsumer{msgType: cConf.Topic, dest: ch}
-	kc.Consumer = consumer.NewConsumer(cConf, kc.ProcessMsg, client)
-	return &kc
-}
-
-func (c *KafkaQConsumer) ProcessMsg(m consumer.Message) {
-	c.dest <- &KafkaQMessage{msgType: c.msgType, msg: m}
+	return consumer.NewConsumer(config, messageHandler, client)
 }

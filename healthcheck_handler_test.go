@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,8 +10,6 @@ import (
 
 	"github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/go-logger/v2"
-	"github.com/Financial-Times/kafka-client-go/v2"
-	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -32,14 +30,13 @@ func TestCheckIfDocumentStoreIsReachable_Errors(t *testing.T) {
 	}
 
 	resp, err := h.checkIfDocumentStoreIsReachable()
-	assert.Contains(t, err.Error(), expError.Error(), fmt.Sprintf("Expected error %v not equal with received one %v", expError, err))
+	assert.ErrorIs(t, err, expError)
 	assert.Empty(t, resp)
 }
 
 func TestCheckIfDocumentStoreIsReachable_Succeeds(t *testing.T) {
 	dc := dummyClient{
 		statusCode: http.StatusOK,
-		body:       "all good",
 	}
 	h := HealthcheckHandler{
 		docStoreAPIBaseURL: "doc-store-base-url",
@@ -64,14 +61,13 @@ func TestCheckIfInternalContentAPIIsReachable_Errors(t *testing.T) {
 	}
 
 	resp, err := h.checkIfInternalContentAPIIsReachable()
-	assert.Contains(t, err.Error(), expError.Error(), fmt.Sprintf("Expected error %v not equal with received one %v", expError, err))
+	assert.ErrorIs(t, err, expError)
 	assert.Empty(t, resp)
 }
 
 func TestCheckIfInternalContentAPIIsReachable_Succeeds(t *testing.T) {
 	dc := dummyClient{
 		statusCode: http.StatusOK,
-		body:       "all good",
 	}
 	h := HealthcheckHandler{
 		internalContentAPIBaseURL: "internal-content-api-base-url",
@@ -87,7 +83,6 @@ func TestCheckIfInternalContentAPIIsReachable_Succeeds(t *testing.T) {
 func TestAllHealthChecks(t *testing.T) {
 	dc := dummyClient{
 		statusCode: http.StatusOK,
-		body:       "all good",
 	}
 	h := HealthcheckHandler{
 		internalContentAPIBaseURL: "internal-content-api-base-url",
@@ -96,34 +91,29 @@ func TestAllHealthChecks(t *testing.T) {
 		consumer:                  &mockConsumer{isConnectionHealthy: true},
 	}
 	testCases := []struct {
-		description        string
-		healthcheckHandler HealthcheckHandler
-		healthcheckFunc    func(h *HealthcheckHandler) v1_1.Check
-		expectedResponse   string
+		description      string
+		healthcheckFunc  func(h *HealthcheckHandler) v1_1.Check
+		expectedResponse string
 	}{
 		{
-			description:        "CombinedPostPublicationEvents messages are being forwarded to the queue",
-			healthcheckHandler: h,
-			healthcheckFunc:    checkKafkaProducerConnectivity,
-			expectedResponse:   "Successfully connected to Kafka",
+			description:      "CombinedPostPublicationEvents messages are being forwarded to the queue",
+			healthcheckFunc:  checkKafkaProducerConnectivity,
+			expectedResponse: "Successfully connected to Kafka",
 		},
 		{
-			description:        "PostPublicationEvents and PostMetadataPublicationEvents messages are received from the queue",
-			healthcheckHandler: h,
-			healthcheckFunc:    checkKafkaProxyConsumerConnectivity,
-			expectedResponse:   "",
+			description:      "PostPublicationEvents and PostMetadataPublicationEvents messages are received from the queue",
+			healthcheckFunc:  checkKafkaProxyConsumerConnectivity,
+			expectedResponse: "",
 		},
 		{
-			description:        "Document-store-api is reachable",
-			healthcheckHandler: h,
-			healthcheckFunc:    checkDocumentStoreAPIHealthcheck,
-			expectedResponse:   ResponseOK,
+			description:      "Document-store-api is reachable",
+			healthcheckFunc:  checkDocumentStoreAPIHealthcheck,
+			expectedResponse: ResponseOK,
 		},
 		{
-			description:        "Internal-content-api is reachable",
-			healthcheckHandler: h,
-			healthcheckFunc:    checkInternalContentAPIHealthcheck,
-			expectedResponse:   ResponseOK,
+			description:      "Internal-content-api is reachable",
+			healthcheckFunc:  checkInternalContentAPIHealthcheck,
+			expectedResponse: ResponseOK,
 		},
 	}
 
@@ -157,7 +147,7 @@ func TestGTG_Bad(t *testing.T) {
 	testCases := []struct {
 		description              string
 		producer                 messageProducer
-		consumer                 consumer.MessageConsumer
+		consumer                 messageConsumer
 		docStoreAPIStatus        int
 		internalContentAPIStatus int
 	}{
@@ -219,24 +209,19 @@ func getMockedServer(docStoreAPIStatus, internalContentAPIStatus int) *httptest.
 
 type dummyClient struct {
 	statusCode int
-	body       string
 	err        error
 }
 
-func (c dummyClient) Do(req *http.Request) (*http.Response, error) {
+func (c dummyClient) Do(*http.Request) (*http.Response, error) {
 	resp := &http.Response{
 		StatusCode: c.statusCode,
-		Body:       ioutil.NopCloser(strings.NewReader(c.body)),
+		Body:       io.NopCloser(strings.NewReader("")),
 	}
 	return resp, c.err
 }
 
 type mockProducer struct {
 	isConnectionHealthy bool
-}
-
-func (p *mockProducer) SendMessage(kafka.FTMessage) error {
-	return nil
 }
 
 func (p *mockProducer) ConnectivityCheck() error {
@@ -249,12 +234,6 @@ func (p *mockProducer) ConnectivityCheck() error {
 
 type mockConsumer struct {
 	isConnectionHealthy bool
-}
-
-func (p *mockConsumer) Start() {
-}
-
-func (p *mockConsumer) Stop() {
 }
 
 func (p *mockConsumer) ConnectivityCheck() (string, error) {
