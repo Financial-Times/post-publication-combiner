@@ -12,8 +12,7 @@ import (
 	health "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/go-logger/v2"
 	"github.com/Financial-Times/http-handlers-go/v2/httphandlers"
-	"github.com/Financial-Times/kafka-client-go/v2"
-	"github.com/Financial-Times/message-queue-gonsumer/consumer"
+	"github.com/Financial-Times/kafka-client-go/v3"
 	"github.com/Financial-Times/post-publication-combiner/v2/processor"
 	status "github.com/Financial-Times/service-status-go/httphandlers"
 	"github.com/gorilla/handlers"
@@ -62,35 +61,17 @@ func main() {
 		Value:  "ForcedCombinedPostPublicationEvents",
 		EnvVar: "KAFKA_FORCED_COMBINED_TOPIC_NAME",
 	})
-	kafkaAddress := app.String(cli.StringOpt{
-		Name:   "kafkaAddress",
-		Value:  "kafka:9092",
-		Desc:   "Address used by the queue producer to connect to Kafka",
-		EnvVar: "KAFKA_ADDR",
-	})
-	kafkaProxyAddress := app.String(cli.StringOpt{
-		Name:   "kafkaProxyAddress",
-		Value:  "http://localhost:8080",
-		Desc:   "Address used by the queue consumer to connect to the queue",
-		EnvVar: "KAFKA_PROXY_ADDR",
-	})
-	kafkaContentConsumerGroup := app.String(cli.StringOpt{
-		Name:   "kafkaContentTopicConsumerGroup",
+	kafkaConsumerGroupID := app.String(cli.StringOpt{
+		Name:   "kafkaConsumerGroupID",
 		Value:  "content-post-publication-combiner",
-		Desc:   "Group used to read the messages from the content queue",
-		EnvVar: "KAFKA_PROXY_CONTENT_CONSUMER_GROUP",
+		Desc:   "Kafka group id used for message consuming.",
+		EnvVar: "KAFKA_CONSUMER_GROUP",
 	})
-	kafkaMetadataConsumerGroup := app.String(cli.StringOpt{
-		Name:   "kafkaMetadataTopicConsumerGroup",
-		Value:  "metadata-post-publication-combiner",
-		Desc:   "Group used to read the messages from the metadata queue",
-		EnvVar: "KAFKA_PROXY_METADATA_CONSUMER_GROUP",
-	})
-	kafkaProxyRoutingHeader := app.String(cli.StringOpt{
-		Name:   "kafkaProxyHeader",
-		Value:  "kafka",
-		Desc:   "Kafka proxy header - used for vulcan routing.",
-		EnvVar: "KAFKA_PROXY_HOST_HEADER",
+	consumerLagTolerance := app.Int(cli.IntOpt{
+		Name:   "consumerLagTolerance",
+		Value:  120,
+		Desc:   "Kafka lag tolerance",
+		EnvVar: "KAFKA_LAG_TOLERANCE",
 	})
 	docStoreAPIBaseURL := app.String(cli.StringOpt{
 		Name:   "docStoreApiBaseURL",
@@ -146,6 +127,12 @@ func main() {
 		Desc:   "Space separated list with content types - to identify accepted content types.",
 		EnvVar: "WHITELISTED_CONTENT_TYPES",
 	})
+	kafkaAddress := app.String(cli.StringOpt{
+		Name:   "kafkaAddress",
+		Value:  "kafka:9092",
+		Desc:   "Address used to connect to Kafka",
+		EnvVar: "KAFKA_ADDR",
+	})
 
 	log := logger.NewUPPLogger(serviceName, *logLevel)
 
@@ -164,29 +151,37 @@ func main() {
 		}
 
 		// create channel for holding the post publication content and metadata messages
-		messagesCh := make(chan *processor.KafkaMessage, 100)
+		messagesCh := make(chan *kafka.FTMessage, 100)
+		// Please keep in mind that defer function are executed in LIFO order.
+		// And deferring the channel must be after deferring the consumers
+		defer func() {
+			log.Infof("Closing messages channel")
+			close(messagesCh)
+		}()
 
 		// consume messages from content queue
-		cConf := consumer.QueueConfig{
-			Addrs: []string{*kafkaProxyAddress},
-			Group: *kafkaContentConsumerGroup,
-			Topic: *contentTopic,
-			Queue: *kafkaProxyRoutingHeader,
+		consumerConfig := kafka.ConsumerConfig{
+			BrokersConnectionString: *kafkaAddress,
+			ConsumerGroup:           *kafkaConsumerGroupID,
+			ConnectionRetryInterval: time.Minute,
 		}
-		cc := processor.NewKafkaConsumer(cConf, messagesCh, client)
-		go cc.Start()
-		defer cc.Stop()
-
-		// consume messages from metadata queue
-		mConf := consumer.QueueConfig{
-			Addrs: []string{*kafkaProxyAddress},
-			Group: *kafkaMetadataConsumerGroup,
-			Topic: *metadataTopic,
-			Queue: *kafkaProxyRoutingHeader,
+		// make list of topics fot the consumer
+		topics := []*kafka.Topic{
+			kafka.NewTopic(*contentTopic, kafka.WithLagTolerance(int64(*consumerLagTolerance))),
+			kafka.NewTopic(*metadataTopic, kafka.WithLagTolerance(int64(*consumerLagTolerance))),
 		}
-		mc := processor.NewKafkaConsumer(mConf, messagesCh, client)
-		go mc.Start()
-		defer mc.Stop()
+		consumer := kafka.NewConsumer(consumerConfig, topics, log)
+		messageHandler := func(message kafka.FTMessage) {
+			messagesCh <- &message
+		}
+		go consumer.Start(messageHandler)
+		defer func(consumer *kafka.Consumer) {
+			log.Infof("Closing consumer")
+			err := consumer.Close()
+			if err != nil {
+				log.WithError(err).Error("Consumer could not stop")
+			}
+		}(consumer)
 
 		// process and forward messages
 		docStoreURL := *docStoreAPIBaseURL + *docStoreAPIEndpoint
@@ -198,11 +193,28 @@ func main() {
 			BrokersConnectionString: *kafkaAddress,
 			Topic:                   *combinedTopic,
 			Options:                 kafka.DefaultProducerOptions(),
+			ConnectionRetryInterval: time.Minute,
 		}
-		messageProducer := kafka.NewProducer(producerConfig, log, 0, time.Minute)
+		messageProducer := kafka.NewProducer(producerConfig, log)
+		defer func(messageProducer *kafka.Producer) {
+			log.Infof("Closing message producer")
+			if err := messageProducer.Close(); err != nil {
+				log.WithError(err).Error("Message producer could not stop")
+			}
+		}(messageProducer)
 
-		processorConf := processor.NewMsgProcessorConfig(*whitelistedContentUris, *whitelistedMetadataOriginSystemHeaders, *contentTopic, *metadataTopic)
-		msgProcessor := processor.NewMsgProcessor(log, messagesCh, processorConf, dataCombiner, messageProducer, *whitelistedContentTypes)
+		processorConf := processor.NewMsgProcessorConfig(
+			*whitelistedContentUris,
+			*whitelistedMetadataOriginSystemHeaders,
+		)
+		msgProcessor := processor.NewMsgProcessor(
+			log,
+			messagesCh,
+			processorConf,
+			dataCombiner,
+			messageProducer,
+			*whitelistedContentTypes,
+		)
 		go msgProcessor.ProcessMessages()
 
 		// process requested messages - used for re-indexing and forced requests
@@ -210,8 +222,15 @@ func main() {
 			BrokersConnectionString: *kafkaAddress,
 			Topic:                   *forcedCombinedTopic,
 			Options:                 kafka.DefaultProducerOptions(),
+			ConnectionRetryInterval: time.Minute,
 		}
-		forcedMessageProducer := kafka.NewProducer(forcedProducerConfig, log, 0, time.Minute)
+		forcedMessageProducer := kafka.NewProducer(forcedProducerConfig, log)
+		defer func(forcedMessageProducer *kafka.Producer) {
+			log.Infof("Closing force messages producer")
+			if err := forcedMessageProducer.Close(); err != nil {
+				log.WithError(err).Error("Force message producer could not stop")
+			}
+		}(forcedMessageProducer)
 
 		requestProcessor := processor.NewRequestProcessor(dataCombiner, forcedMessageProducer, *whitelistedContentTypes)
 
@@ -221,20 +240,24 @@ func main() {
 		}
 
 		// Since the health check for all producers and consumers just checks /topics for a response, we pick a producer and a consumer at random
-		healthcheckHandler := NewCombinerHealthcheck(log, messageProducer, mc, client, *docStoreAPIBaseURL, *internalContentAPIBaseURL)
+		healthcheckHandler := NewCombinerHealthcheck(log, messageProducer, consumer, client, *docStoreAPIBaseURL, *internalContentAPIBaseURL)
 
 		routeRequests(log, port, reqHandler, healthcheckHandler)
 	}
 
 	log.Infof("PostPublicationCombiner is starting with args %v", os.Args)
 
-	err := app.Run(os.Args)
-	if err != nil {
+	if err := app.Run(os.Args); err != nil {
 		log.WithError(err).Error("App could not start")
 	}
 }
 
-func routeRequests(log *logger.UPPLogger, port *string, requestHandler *requestHandler, healthService *HealthcheckHandler) {
+func routeRequests(
+	log *logger.UPPLogger,
+	port *string,
+	requestHandler *requestHandler,
+	healthService *HealthcheckHandler,
+) {
 	r := http.NewServeMux()
 
 	r.HandleFunc(status.BuildInfoPath, status.BuildInfoHandler)
@@ -243,7 +266,8 @@ func routeRequests(log *logger.UPPLogger, port *string, requestHandler *requestH
 
 	checks := []health.Check{
 		checkKafkaProducerConnectivity(healthService),
-		checkKafkaProxyConsumerConnectivity(healthService),
+		checkKafkaConsumerConnectivity(healthService),
+		monitorKafkaConsumers(healthService),
 		checkDocumentStoreAPIHealthcheck(healthService),
 		checkInternalContentAPIHealthcheck(healthService),
 	}

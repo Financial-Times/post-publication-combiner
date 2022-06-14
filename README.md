@@ -32,7 +32,6 @@ The service then constructs a `CombinedPostPublicationEvents` message with the r
 
 ### Dependencies
 
-- [kafka/kafka-proxy](https://github.com/Financial-Times/upp-kafka)
 - [document-store-api](https://github.com/Financial-Times/document-store-api) (`/content` endpoint)
 - [internal-content-api](https://github.com/Financial-Times/internal-content-api) (`/internalcontent/{uuid}?unrollContent=true` endpoint)
 - [content-collection-rw-neo4j](https://github.com/Financial-Times/content-collection-rw-neo4j) (`/content-collection/content-package/{uuid}` endpoint)
@@ -90,7 +89,7 @@ Our standard admin endpoints are:
 
 Checks if:
 
-- kafka-proxy is reachable
+- kafka is reachable
 - document-store-api is reachable
 - internal-content-api is reachable
 

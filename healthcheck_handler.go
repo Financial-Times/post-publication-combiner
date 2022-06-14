@@ -19,7 +19,8 @@ type messageProducer interface {
 }
 
 type messageConsumer interface {
-	ConnectivityCheck() (string, error)
+	ConnectivityCheck() error
+	MonitorCheck() error
 }
 
 type HealthcheckHandler struct {
@@ -49,18 +50,29 @@ func checkKafkaProducerConnectivity(h *HealthcheckHandler) health.Check {
 		PanicGuide:       fmt.Sprintf("https://runbooks.ftops.tech/%s", systemCode),
 		Severity:         2,
 		TechnicalSummary: "CombinedPostPublicationEvents and ForcedCombinedPostPublicationEvents messages can't be forwarded to the queue. Check if Kafka is reachable.",
-		Checker:          h.checkIfKafkaIsReachable,
+		Checker:          h.checkIfKafkaIsReachableFromProducer,
 	}
 }
 
-func checkKafkaProxyConsumerConnectivity(h *HealthcheckHandler) health.Check {
+func checkKafkaConsumerConnectivity(h *HealthcheckHandler) health.Check {
 	return health.Check{
 		BusinessImpact:   "Can't process PostPublicationEvents and PostMetadataPublicationEvents messages. Indexing for search won't work.",
-		Name:             "Check connectivity to the kafka-proxy",
+		Name:             "Check connectivity to the kafka",
 		PanicGuide:       fmt.Sprintf("https://runbooks.ftops.tech/%s", systemCode),
 		Severity:         2,
-		TechnicalSummary: "PostPublicationEvents and PostMetadataPublicationEvents messages are not received from the queue. Check if kafka-proxy is reachable.",
-		Checker:          h.consumer.ConnectivityCheck,
+		TechnicalSummary: "PostPublicationEvents and PostMetadataPublicationEvents messages are not received from the queue. Check if kafka is reachable.",
+		Checker:          h.checkIfKafkaIsReachableFromConsumer,
+	}
+}
+
+func monitorKafkaConsumers(h *HealthcheckHandler) health.Check {
+	return health.Check{
+		BusinessImpact:   "Consumer is lagging behind when reading messages. Indexing of content will be delayed.",
+		Name:             "Check consumer status",
+		PanicGuide:       fmt.Sprintf("https://runbooks.ftops.tech/%s", systemCode),
+		Severity:         3,
+		TechnicalSummary: "Messages awaiting handling exceed the configured lag tolerance. Check if Kafka consumer is stuck.",
+		Checker:          h.checkIfConsumerIsLagging,
 	}
 }
 
@@ -88,10 +100,13 @@ func checkInternalContentAPIHealthcheck(h *HealthcheckHandler) health.Check {
 
 func (h *HealthcheckHandler) GTG() gtg.Status {
 	consumerCheck := func() gtg.Status {
-		return gtgCheck(h.consumer.ConnectivityCheck)
+		return gtgCheck(h.checkIfKafkaIsReachableFromConsumer)
+	}
+	consumerMonitorCheck := func() gtg.Status {
+		return gtgCheck(h.checkIfConsumerIsLagging)
 	}
 	producerCheck := func() gtg.Status {
-		return gtgCheck(h.checkIfKafkaIsReachable)
+		return gtgCheck(h.checkIfKafkaIsReachableFromProducer)
 	}
 	docStoreCheck := func() gtg.Status {
 		return gtgCheck(h.checkIfDocumentStoreIsReachable)
@@ -102,6 +117,7 @@ func (h *HealthcheckHandler) GTG() gtg.Status {
 
 	return gtg.FailFastParallelCheck([]gtg.StatusChecker{
 		consumerCheck,
+		consumerMonitorCheck,
 		producerCheck,
 		docStoreCheck,
 		internalContentAPICheck,
@@ -133,10 +149,26 @@ func (h *HealthcheckHandler) checkIfInternalContentAPIIsReachable() (string, err
 	return ResponseOK, nil
 }
 
-func (h *HealthcheckHandler) checkIfKafkaIsReachable() (string, error) {
+func (h *HealthcheckHandler) checkIfKafkaIsReachableFromConsumer() (string, error) {
+	err := h.consumer.ConnectivityCheck()
+	if err != nil {
+		return "", err
+	}
+	return ResponseOK, nil
+}
+
+func (h *HealthcheckHandler) checkIfConsumerIsLagging() (string, error) {
+	err := h.consumer.MonitorCheck()
+	if err != nil {
+		return "", err
+	}
+	return ResponseOK, nil
+}
+
+func (h *HealthcheckHandler) checkIfKafkaIsReachableFromProducer() (string, error) {
 	err := h.producer.ConnectivityCheck()
 	if err != nil {
 		return "", err
 	}
-	return "Successfully connected to Kafka", nil
+	return ResponseOK, nil
 }
