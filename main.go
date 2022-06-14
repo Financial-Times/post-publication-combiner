@@ -12,7 +12,7 @@ import (
 	health "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/go-logger/v2"
 	"github.com/Financial-Times/http-handlers-go/v2/httphandlers"
-	"github.com/Financial-Times/kafka-client-go/v2"
+	"github.com/Financial-Times/kafka-client-go/v3"
 	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"github.com/Financial-Times/post-publication-combiner/v2/processor"
 	status "github.com/Financial-Times/service-status-go/httphandlers"
@@ -198,8 +198,9 @@ func main() {
 			BrokersConnectionString: *kafkaAddress,
 			Topic:                   *combinedTopic,
 			Options:                 kafka.DefaultProducerOptions(),
+			ConnectionRetryInterval: time.Minute,
 		}
-		messageProducer := kafka.NewProducer(producerConfig, log, 0, time.Minute)
+		messageProducer := kafka.NewProducer(producerConfig, log)
 
 		processorConf := processor.NewMsgProcessorConfig(*whitelistedContentUris, *whitelistedMetadataOriginSystemHeaders, *contentTopic, *metadataTopic)
 		msgProcessor := processor.NewMsgProcessor(log, messagesCh, processorConf, dataCombiner, messageProducer, *whitelistedContentTypes)
@@ -210,8 +211,9 @@ func main() {
 			BrokersConnectionString: *kafkaAddress,
 			Topic:                   *forcedCombinedTopic,
 			Options:                 kafka.DefaultProducerOptions(),
+			ConnectionRetryInterval: time.Minute,
 		}
-		forcedMessageProducer := kafka.NewProducer(forcedProducerConfig, log, 0, time.Minute)
+		forcedMessageProducer := kafka.NewProducer(forcedProducerConfig, log)
 
 		requestProcessor := processor.NewRequestProcessor(dataCombiner, forcedMessageProducer, *whitelistedContentTypes)
 
