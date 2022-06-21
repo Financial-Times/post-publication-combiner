@@ -88,7 +88,10 @@ func TestAllHealthChecks(t *testing.T) {
 		internalContentAPIBaseURL: "internal-content-api-base-url",
 		httpClient:                &dc,
 		producer:                  &mockProducer{isConnectionHealthy: true},
-		consumer:                  &mockConsumer{isConnectionHealthy: true},
+		consumer: &mockConsumer{
+			isConnectionHealthy: true,
+			isNotLagging:        true,
+		},
 	}
 	testCases := []struct {
 		description      string
@@ -98,12 +101,17 @@ func TestAllHealthChecks(t *testing.T) {
 		{
 			description:      "CombinedPostPublicationEvents messages are being forwarded to the queue",
 			healthcheckFunc:  checkKafkaProducerConnectivity,
-			expectedResponse: "Successfully connected to Kafka",
+			expectedResponse: ResponseOK,
 		},
 		{
 			description:      "PostPublicationEvents and PostMetadataPublicationEvents messages are received from the queue",
-			healthcheckFunc:  checkKafkaProxyConsumerConnectivity,
-			expectedResponse: "",
+			healthcheckFunc:  checkKafkaConsumerConnectivity,
+			expectedResponse: ResponseOK,
+		},
+		{
+			description:      "Consumer is not logging",
+			healthcheckFunc:  monitorKafkaConsumers,
+			expectedResponse: ResponseOK,
 		},
 		{
 			description:      "Document-store-api is reachable",
@@ -131,9 +139,12 @@ func TestGTG_Good(t *testing.T) {
 		statusCode: http.StatusOK,
 	}
 	h := HealthcheckHandler{
-		httpClient:                &dc,
-		producer:                  &mockProducer{isConnectionHealthy: true},
-		consumer:                  &mockConsumer{isConnectionHealthy: true},
+		httpClient: &dc,
+		producer:   &mockProducer{isConnectionHealthy: true},
+		consumer: &mockConsumer{
+			isConnectionHealthy: true,
+			isNotLagging:        true,
+		},
 		docStoreAPIBaseURL:        "doc-store-base-url",
 		internalContentAPIBaseURL: "internal-content-api-base-url",
 	}
@@ -162,6 +173,13 @@ func TestGTG_Bad(t *testing.T) {
 			description:              "Consumer KafkaProxy GTG endpoint returns 503",
 			producer:                 &mockProducer{isConnectionHealthy: true},
 			consumer:                 &mockConsumer{isConnectionHealthy: false},
+			docStoreAPIStatus:        200,
+			internalContentAPIStatus: 200,
+		},
+		{
+			description:              "Consumer is lagging",
+			producer:                 &mockProducer{isConnectionHealthy: true},
+			consumer:                 &mockConsumer{isNotLagging: false},
 			docStoreAPIStatus:        200,
 			internalContentAPIStatus: 200,
 		},
@@ -234,12 +252,21 @@ func (p *mockProducer) ConnectivityCheck() error {
 
 type mockConsumer struct {
 	isConnectionHealthy bool
+	isNotLagging        bool
 }
 
-func (p *mockConsumer) ConnectivityCheck() (string, error) {
-	if p.isConnectionHealthy {
-		return "", nil
+func (p *mockConsumer) MonitorCheck() error {
+	if p.isNotLagging {
+		return nil
 	}
 
-	return "", fmt.Errorf("error connecting to the queue")
+	return fmt.Errorf("error consumer is lagging")
+}
+
+func (p *mockConsumer) ConnectivityCheck() error {
+	if p.isConnectionHealthy {
+		return nil
+	}
+
+	return fmt.Errorf("error connecting to the queue")
 }

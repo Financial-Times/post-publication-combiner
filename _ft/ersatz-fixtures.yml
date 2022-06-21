@@ -1,37 +1,5 @@
 version: "1.0.0"
 fixtures:
-### kafka related ###
-  /consumers/content-post-publication-combiner:
-    post:
-      status: 200
-      headers:
-        content-type: application/json
-      body:
-        base_uri: "base_uri"
-        instance_id: "instance_id"
-  /consumers/metadata-post-publication-combiner:
-    post:
-      status: 200
-      headers:
-        content-type: application/json
-      body:
-        base_uri: "base_uri"
-        instance_id: "instance_id"
-  /base_uri/topics/PostConceptAnnotations:
-    get:
-      status: 200
-      body: []
-  /base_uri/topics/PostPublicationEvents:
-    get:
-      status: 200
-      body: []
-  /base_uri:
-    delete:
-      status: 200
-  /base_uri/offsets:
-    post:
-      status: 200
-
 ### all data about a given UUID are found ###
   /__internal-content-api/internalcontent/a224c5d3-0f1c-49bd-b70c-c88f5d29cf60?unrollContent=true:
     get:

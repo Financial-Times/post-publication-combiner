@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Financial-Times/kafka-client-go/v3"
+
 	"github.com/Financial-Times/go-logger/v2"
-	"github.com/Financial-Times/message-queue-gonsumer/consumer"
 	"github.com/dchest/uniuri"
 )
 
@@ -16,7 +17,7 @@ var (
 )
 
 type MsgProcessor struct {
-	src          <-chan *KafkaMessage
+	src          <-chan *kafka.FTMessage
 	config       MsgProcessorConfig
 	dataCombiner dataCombiner
 	forwarder    *forwarder
@@ -26,20 +27,23 @@ type MsgProcessor struct {
 type MsgProcessorConfig struct {
 	SupportedContentURIs []string
 	SupportedHeaders     []string
-	ContentTopic         string
-	MetadataTopic        string
 }
 
-func NewMsgProcessorConfig(supportedURIs, supportedHeaders []string, contentTopic, metadataTopic string) MsgProcessorConfig {
+func NewMsgProcessorConfig(supportedURIs, supportedHeaders []string) MsgProcessorConfig {
 	return MsgProcessorConfig{
 		SupportedContentURIs: supportedURIs,
 		SupportedHeaders:     supportedHeaders,
-		ContentTopic:         contentTopic,
-		MetadataTopic:        metadataTopic,
 	}
 }
 
-func NewMsgProcessor(log *logger.UPPLogger, srcCh <-chan *KafkaMessage, config MsgProcessorConfig, dataCombiner dataCombiner, producer messageProducer, whitelistedContentTypes []string) *MsgProcessor {
+func NewMsgProcessor(
+	log *logger.UPPLogger,
+	srcCh <-chan *kafka.FTMessage,
+	config MsgProcessorConfig,
+	dataCombiner dataCombiner,
+	producer messageProducer,
+	whitelistedContentTypes []string,
+) *MsgProcessor {
 	return &MsgProcessor{
 		src:          srcCh,
 		config:       config,
@@ -51,16 +55,28 @@ func NewMsgProcessor(log *logger.UPPLogger, srcCh <-chan *KafkaMessage, config M
 
 func (p *MsgProcessor) ProcessMessages() {
 	for {
-		m := <-p.src
-		if m.topic == p.config.ContentTopic {
-			p.processContentMsg(m.message)
-		} else if m.topic == p.config.MetadataTopic {
-			p.processMetadataMsg(m.message)
+		m, more := <-p.src
+		if !more {
+			break
+		}
+
+		if isAnnotationMessage(m.Headers) {
+			p.processMetadataMsg(*m)
+		} else {
+			p.processContentMsg(*m)
 		}
 	}
 }
 
-func (p *MsgProcessor) processContentMsg(m consumer.Message) {
+func isAnnotationMessage(msgHeaders map[string]string) bool {
+	msgType, ok := msgHeaders["Message-Type"]
+	if !ok {
+		return false
+	}
+	return msgType == "concept-annotation"
+}
+
+func (p *MsgProcessor) processContentMsg(m kafka.FTMessage) {
 	tid := p.extractTID(m.Headers)
 	m.Headers["X-Request-Id"] = tid
 
@@ -68,7 +84,7 @@ func (p *MsgProcessor) processContentMsg(m consumer.Message) {
 		WithTransactionID(tid).
 		WithField("processor", "content")
 
-	//parse message - collect data, then forward it to the next queue
+	// parse message - collect data, then forward it to the next queue
 	var cm ContentMessage
 	if err := json.Unmarshal([]byte(m.Body), &cm); err != nil {
 		log.WithError(err).Error("Could not unmarshal message")
@@ -100,7 +116,9 @@ func (p *MsgProcessor) processContentMsg(m consumer.Message) {
 		var err error
 		combinedMSG, err = p.dataCombiner.GetCombinedModelForContent(cm.ContentModel)
 		if err != nil {
-			log.WithError(err).Error("Error obtaining the combined message. Metadata could not be read. Message will be skipped.")
+			log.
+				WithError(err).
+				Error("Error obtaining the combined message. Metadata could not be read. Message will be skipped.")
 			return
 		}
 
@@ -115,7 +133,7 @@ func (p *MsgProcessor) processContentMsg(m consumer.Message) {
 	log.Info("Message successfully forwarded")
 }
 
-func (p *MsgProcessor) processMetadataMsg(m consumer.Message) {
+func (p *MsgProcessor) processMetadataMsg(m kafka.FTMessage) {
 	tid := p.extractTID(m.Headers)
 	m.Headers["X-Request-Id"] = tid
 	h := m.Headers["Origin-System-Id"]

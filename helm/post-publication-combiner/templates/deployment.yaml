@@ -43,10 +43,10 @@ spec:
           value: "{{ .Values.env.KAFKA_COMBINED_TOPIC_NAME }}"
         - name: KAFKA_FORCED_COMBINED_TOPIC_NAME
           value: "{{ .Values.env.KAFKA_FORCED_COMBINED_TOPIC_NAME }}"
-        - name: KAFKA_PROXY_CONTENT_CONSUMER_GROUP
-          value: "{{ .Values.env.KAFKA_PROXY_CONTENT_CONSUMER_GROUP }}"
-        - name: KAFKA_PROXY_METADATA_CONSUMER_GROUP
-          value: "{{ .Values.env.KAFKA_PROXY_METADATA_CONSUMER_GROUP }}"
+        - name: KAFKA_CONSUMER_GROUP
+          value: "{{ .Values.env.KAFKA_CONSUMER_GROUP }}"
+        - name: KAFKA_LAG_TOLERANCE
+          value: "{{ .Values.env.KAFKA_LAG_TOLERANCE }}"
         - name: DOCUMENT_STORE_BASE_URL
           value: "{{ .Values.env.DOCUMENT_STORE_BASE_URL }}"
         - name: DOCUMENT_STORE_API_ENDPOINT
@@ -65,11 +65,6 @@ spec:
           value: "{{ .Values.env.WHITELISTED_CONTENT_URIS }}"
         - name: WHITELISTED_CONTENT_TYPES
           value: "{{ .Values.env.WHITELISTED_CONTENT_TYPES }}"
-        - name: KAFKA_PROXY_ADDR
-          valueFrom:
-            configMapKeyRef:
-              name: global-config
-              key: kafka.proxy.url.with.protocol
         - name: KAFKA_ADDR
           valueFrom:
             configMapKeyRef:

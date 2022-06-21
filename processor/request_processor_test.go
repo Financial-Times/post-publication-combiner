@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/Financial-Times/kafka-client-go/v2"
+	"github.com/Financial-Times/kafka-client-go/v3"
 	"github.com/stretchr/testify/assert"
 )
 

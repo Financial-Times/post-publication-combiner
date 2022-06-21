@@ -7,10 +7,10 @@ import (
 	"os"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/Financial-Times/go-logger/v2"
-	"github.com/Financial-Times/kafka-client-go/v2"
-	"github.com/Financial-Times/message-queue-gonsumer/consumer"
+	"github.com/Financial-Times/kafka-client-go/v3"
 	hooks "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,8 +23,47 @@ func testLogger() (*logger.UPPLogger, *hooks.Hook) {
 	return log, hook
 }
 
+func TestMsgProcessor_ProcessMessages_Stays_Open_While_Channel_Is_Open(t *testing.T) {
+	ch := make(chan *kafka.FTMessage)
+	processor := MsgProcessor{src: ch}
+
+	timeout := time.After(3 * time.Second)
+	done := make(chan bool)
+
+	go func() {
+		processor.ProcessMessages()
+		done <- true
+	}()
+
+	select {
+	case <-done:
+		assert.Fail(t, "Goroutine closed")
+	case <-timeout:
+	}
+}
+
+func TestMsgProcessor_ProcessMessages_Closes_When_Channel_Closes(t *testing.T) {
+	ch := make(chan *kafka.FTMessage)
+	processor := MsgProcessor{src: ch}
+
+	timeout := time.After(3 * time.Second)
+	done := make(chan bool)
+
+	go func() {
+		processor.ProcessMessages()
+		done <- true
+	}()
+	close(ch)
+
+	select {
+	case <-done:
+	case <-timeout:
+		assert.Fail(t, "Failed to close goroutine")
+	}
+}
+
 func TestProcessContentMsg_Unmarshal_Error(t *testing.T) {
-	m := consumer.Message{
+	m := kafka.FTMessage{
 		Headers: map[string]string{"X-Request-Id": "some-tid1"},
 		Body:    `body`,
 	}
@@ -275,7 +314,7 @@ func TestProcessMetadataMsg_UnSupportedOrigins(t *testing.T) {
 }
 
 func TestProcessMetadataMsg_SupportedOrigin_Unmarshal_Error(t *testing.T) {
-	m := consumer.Message{
+	m := kafka.FTMessage{
 		Headers: map[string]string{"X-Request-Id": "some-tid1", "Origin-System-Id": "http://cmdb.ft.com/systems/binding-service"},
 		Body:    `some body`,
 	}
@@ -646,19 +685,19 @@ func (c DummyDataCombiner) GetCombinedModel(uuid string) (CombinedModel, error) 
 	return c.data, c.err
 }
 
-func createMessage(headers map[string]string, fixture string) (consumer.Message, error) {
+func createMessage(headers map[string]string, fixture string) (kafka.FTMessage, error) {
 	f, err := os.Open(fixture)
 	if err != nil {
-		return consumer.Message{}, err
+		return kafka.FTMessage{}, err
 	}
 	defer f.Close()
 
 	data, err := io.ReadAll(f)
 	if err != nil {
-		return consumer.Message{}, err
+		return kafka.FTMessage{}, err
 	}
 
-	return consumer.Message{
+	return kafka.FTMessage{
 		Headers: headers,
 		Body:    string(data),
 	}, nil

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/Financial-Times/kafka-client-go/v2"
+	"github.com/Financial-Times/kafka-client-go/v3"
 )
 
 const (
