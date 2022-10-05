@@ -9,7 +9,7 @@ env:
   KAFKA_COMBINED_TOPIC_NAME: CombinedPostPublicationEvents
   KAFKA_FORCED_COMBINED_TOPIC_NAME: ForcedCombinedPostPublicationEvents
   KAFKA_CONSUMER_GROUP: post-publication-combiner
-  KAFKA_LAG_TOLERANCE: 120
+  KAFKA_LAG_TOLERANCE: 200000
   DOCUMENT_STORE_BASE_URL: http://document-store-api:8080
   DOCUMENT_STORE_API_ENDPOINT: /content/{uuid}
   INTERNAL_CONTENT_API_BASE_URL: http://internal-content-api:8080
