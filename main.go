@@ -69,7 +69,7 @@ func main() {
 	})
 	consumerLagTolerance := app.Int(cli.IntOpt{
 		Name:   "consumerLagTolerance",
-		Value:  120,
+		Value:  200000,
 		Desc:   "Kafka lag tolerance",
 		EnvVar: "KAFKA_LAG_TOLERANCE",
 	})
