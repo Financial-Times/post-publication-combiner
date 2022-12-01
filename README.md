@@ -97,5 +97,5 @@ Checks if:
 
 ### Logging
 
-- The application uses the FT [go-logger](https://github.com/Financial-Times/go-logger/v2) library, based on [logrus](https://github.com/sirupsen/logrus).
+- The application uses the FT [go-logger](https://github.com/Financial-Times/go-logger/tree/v2) library, based on [logrus](https://github.com/sirupsen/logrus).
 - NOTE: There is no logging for `/__build-info` and `/__gtg` endpoints as they are called frequently.
