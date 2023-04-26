@@ -12,7 +12,7 @@ import (
 	health "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/go-logger/v2"
 	"github.com/Financial-Times/http-handlers-go/v2/httphandlers"
-	"github.com/Financial-Times/kafka-client-go/v3"
+	"github.com/Financial-Times/kafka-client-go/v4"
 	"github.com/Financial-Times/post-publication-combiner/v2/processor"
 	status "github.com/Financial-Times/service-status-go/httphandlers"
 	"github.com/gorilla/handlers"
@@ -133,6 +133,12 @@ func main() {
 		Desc:   "Address used to connect to Kafka",
 		EnvVar: "KAFKA_ADDR",
 	})
+	kafkaClusterArn := app.String(cli.StringOpt{
+		Name:   "kafkaClusterArn",
+		Value:  "",
+		Desc:   "Kafka cluster arn",
+		EnvVar: "KAFKA_CLUSTER_ARN",
+	})
 
 	log := logger.NewUPPLogger(serviceName, *logLevel)
 
@@ -163,14 +169,21 @@ func main() {
 		consumerConfig := kafka.ConsumerConfig{
 			BrokersConnectionString: *kafkaAddress,
 			ConsumerGroup:           *kafkaConsumerGroupID,
-			ConnectionRetryInterval: time.Minute,
 		}
+		if *kafkaClusterArn != "" {
+			consumerConfig.ClusterArn = kafkaClusterArn
+		}
+
 		// make list of topics fot the consumer
 		topics := []*kafka.Topic{
 			kafka.NewTopic(*contentTopic, kafka.WithLagTolerance(int64(*consumerLagTolerance))),
 			kafka.NewTopic(*metadataTopic, kafka.WithLagTolerance(int64(*consumerLagTolerance))),
 		}
-		consumer := kafka.NewConsumer(consumerConfig, topics, log)
+		consumer, err := kafka.NewConsumer(consumerConfig, topics, log)
+		if err != nil {
+			log.WithError(err).Fatal("Could not create consumer")
+		}
+
 		messageHandler := func(message kafka.FTMessage) {
 			messagesCh <- &message
 		}
@@ -193,9 +206,16 @@ func main() {
 			BrokersConnectionString: *kafkaAddress,
 			Topic:                   *combinedTopic,
 			Options:                 kafka.DefaultProducerOptions(),
-			ConnectionRetryInterval: time.Minute,
 		}
-		messageProducer := kafka.NewProducer(producerConfig, log)
+		if *kafkaClusterArn != "" {
+			producerConfig.ClusterArn = kafkaClusterArn
+		}
+
+		messageProducer, err := kafka.NewProducer(producerConfig)
+		if err != nil {
+			log.WithError(err).Fatal("Could not create message producer")
+		}
+
 		defer func(messageProducer *kafka.Producer) {
 			log.Infof("Closing message producer")
 			if err := messageProducer.Close(); err != nil {
@@ -222,9 +242,16 @@ func main() {
 			BrokersConnectionString: *kafkaAddress,
 			Topic:                   *forcedCombinedTopic,
 			Options:                 kafka.DefaultProducerOptions(),
-			ConnectionRetryInterval: time.Minute,
 		}
-		forcedMessageProducer := kafka.NewProducer(forcedProducerConfig, log)
+		if *kafkaClusterArn != "" {
+			forcedProducerConfig.ClusterArn = kafkaClusterArn
+		}
+
+		forcedMessageProducer, err := kafka.NewProducer(forcedProducerConfig)
+		if err != nil {
+			log.WithError(err).Fatal("Could not create force message producer")
+		}
+
 		defer func(forcedMessageProducer *kafka.Producer) {
 			log.Infof("Closing force messages producer")
 			if err := forcedMessageProducer.Close(); err != nil {
