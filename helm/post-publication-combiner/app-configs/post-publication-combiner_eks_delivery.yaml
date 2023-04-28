@@ -2,6 +2,7 @@
 replicaCount: 2
 service:
   name: post-publication-combiner
+  serviceAccountName: "eksctl-post-publication-combiner-serviceaccount"
 env:
   PORT: 8080
   KAFKA_CONTENT_TOPIC_NAME: PostPublicationEvents

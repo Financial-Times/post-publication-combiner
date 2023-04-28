@@ -28,6 +28,7 @@ spec:
                 values:
                 - {{ .Values.service.name }}
             topologyKey: "kubernetes.io/hostname"
+      serviceAccountName: {{ .Values.service.serviceAccountName }}
       containers:
       - name: {{ .Values.service.name }}
         image: "{{ .Values.image.repository }}:{{ .Chart.Version }}"
@@ -47,6 +48,11 @@ spec:
           value: "{{ .Values.env.KAFKA_CONSUMER_GROUP }}"
         - name: KAFKA_LAG_TOLERANCE
           value: "{{ .Values.env.KAFKA_LAG_TOLERANCE }}"
+        - name: KAFKA_CLUSTER_ARN
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: msk.kafka.cluster.arn
         - name: DOCUMENT_STORE_BASE_URL
           value: "{{ .Values.env.DOCUMENT_STORE_BASE_URL }}"
         - name: DOCUMENT_STORE_API_ENDPOINT
