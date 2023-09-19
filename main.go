@@ -196,8 +196,7 @@ func main() {
 		go consumer.Start(messageHandler)
 		defer func(consumer *kafka.Consumer) {
 			log.Infof("Closing consumer")
-			err := consumer.Close()
-			if err != nil {
+			if err = consumer.Close(); err != nil {
 				log.WithError(err).Error("Consumer could not stop")
 			}
 		}(consumer)
@@ -223,13 +222,13 @@ func main() {
 		}
 		defer func(messageProducer *kafka.Producer) {
 			log.Infof("Closing message producer")
-			if err := messageProducer.Close(); err != nil {
+			if err = messageProducer.Close(); err != nil {
 				log.WithError(err).Error("Message producer could not stop")
 			}
 		}(producer)
 
 		evaluator, err := processor.CreateEvaluator(
-			"data.specialContent.msg",
+			"data.specialContent.message",
 			[]string{*opaFileLocation},
 		)
 
@@ -265,15 +264,15 @@ func main() {
 
 		defer func(forcedMessageProducer *kafka.Producer) {
 			log.Infof("Closing force messages producer")
-			if err := forcedMessageProducer.Close(); err != nil {
+			if err = forcedMessageProducer.Close(); err != nil {
 				log.WithError(err).Error("Force message producer could not stop")
 			}
 		}(forcedMessageProducer)
 
-		requestProcessor := processor.NewRequestProcessor(dataCombiner, forcedMessageProducer, *whitelistedContentTypes)
+		proc := processor.NewRequestProcessor(dataCombiner, forcedMessageProducer, *whitelistedContentTypes)
 
 		reqHandler := &requestHandler{
-			requestProcessor: requestProcessor,
+			requestProcessor: proc,
 			log:              log,
 		}
 
