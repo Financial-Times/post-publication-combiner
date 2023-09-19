@@ -21,6 +21,7 @@ type MsgProcessor struct {
 	config       MsgProcessorConfig
 	dataCombiner dataCombiner
 	forwarder    *forwarder
+	evaluator    *Evaluator
 	log          *logger.UPPLogger
 }
 
@@ -91,15 +92,19 @@ func (p *MsgProcessor) processContentMsg(m kafka.FTMessage) {
 		return
 	}
 
-	// next-video, upp-content-validator - the system origin is not enough to help us filtering. Filter by contentUri.
+	// next-video, upp-content-validator - the system origin is not enough to help us filter. Filter by contentUri.
 	if !containsSubstringOf(p.config.SupportedContentURIs, cm.ContentURI) {
 		log.WithField("contentUri", cm.ContentURI).Info("Skipped content with unsupported contentUri")
 		return
 	}
 
 	uuid := cm.ContentModel.getUUID()
-	if uuid == "" {
-		log.WithField("contentUri", cm.ContentURI).Error("Content UUID was not found. Message will be skipped.")
+	err := p.evaluator.EvaluateMsgAccessLevel(map[string]interface{}{
+		"EditorialDesk": cm.EditorialDesk,
+		"UUID":          uuid,
+	})
+	if err != nil {
+		log.WithField("contentUri", cm.ContentURI).Error(err)
 		return
 	}
 
@@ -113,7 +118,6 @@ func (p *MsgProcessor) processContentMsg(m kafka.FTMessage) {
 		combinedMSG.LastModified = cm.LastModified
 		combinedMSG.Deleted = true
 	} else {
-		var err error
 		combinedMSG, err = p.dataCombiner.GetCombinedModelForContent(cm.ContentModel)
 		if err != nil {
 			log.
@@ -125,7 +129,7 @@ func (p *MsgProcessor) processContentMsg(m kafka.FTMessage) {
 		combinedMSG.ContentURI = cm.ContentURI
 	}
 
-	if err := p.forwarder.filterAndForwardMsg(m.Headers, &combinedMSG); err != nil {
+	if err = p.forwarder.filterAndForwardMsg(m.Headers, &combinedMSG); err != nil {
 		log.WithError(err).Error("Failed to forward message to Kafka")
 		return
 	}

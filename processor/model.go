@@ -1,9 +1,10 @@
 package processor
 
 type ContentMessage struct {
-	ContentURI   string       `json:"contentUri"`
-	ContentModel ContentModel `json:"payload"`
-	LastModified string       `json:"lastModified"`
+	ContentURI    string       `json:"contentUri"`
+	ContentModel  ContentModel `json:"payload"`
+	LastModified  string       `json:"lastModified"`
+	EditorialDesk string       `json:"editorialDesk"`
 }
 
 type ContentModel map[string]interface{}

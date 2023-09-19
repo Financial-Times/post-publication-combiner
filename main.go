@@ -211,17 +211,16 @@ func main() {
 			producerConfig.ClusterArn = kafkaClusterArn
 		}
 
-		messageProducer, err := kafka.NewProducer(producerConfig)
+		producer, err := kafka.NewProducer(producerConfig)
 		if err != nil {
 			log.WithError(err).Fatal("Could not create message producer")
 		}
-
 		defer func(messageProducer *kafka.Producer) {
 			log.Infof("Closing message producer")
 			if err := messageProducer.Close(); err != nil {
 				log.WithError(err).Error("Message producer could not stop")
 			}
-		}(messageProducer)
+		}(producer)
 
 		processorConf := processor.NewMsgProcessorConfig(
 			*whitelistedContentUris,
@@ -232,7 +231,7 @@ func main() {
 			messagesCh,
 			processorConf,
 			dataCombiner,
-			messageProducer,
+			producer,
 			*whitelistedContentTypes,
 		)
 		go msgProcessor.ProcessMessages()
@@ -267,7 +266,7 @@ func main() {
 		}
 
 		// Since the health check for all producers and consumers just checks /topics for a response, we pick a producer and a consumer at random
-		healthcheckHandler := NewCombinerHealthcheck(log, messageProducer, consumer, client, *docStoreAPIBaseURL, *internalContentAPIBaseURL)
+		healthcheckHandler := NewCombinerHealthcheck(log, producer, consumer, client, *docStoreAPIBaseURL, *internalContentAPIBaseURL)
 
 		routeRequests(log, port, reqHandler, healthcheckHandler)
 	}

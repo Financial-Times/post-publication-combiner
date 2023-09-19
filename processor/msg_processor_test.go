@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/Financial-Times/go-logger/v2"
 	"github.com/Financial-Times/kafka-client-go/v4"
+	"github.com/open-policy-agent/opa/rego"
 	hooks "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -112,7 +114,14 @@ func TestProcessContentMsg_SupportedContent_EmptyUUID(t *testing.T) {
 	config := MsgProcessorConfig{SupportedContentURIs: allowedUris}
 
 	log, hook := testLogger()
-	p := &MsgProcessor{config: config, log: log}
+	defaultEvalQuery, err := rego.New(
+		rego.Query("data.specialContent.msg"),
+		rego.Load([]string{"../opa_modules/special_content.rego"}, nil),
+	).PrepareForEval(context.TODO())
+	assert.NoError(t, err)
+	evaluator := &Evaluator{evalQuery: &defaultEvalQuery}
+
+	p := &MsgProcessor{config: config, log: log, evaluator: evaluator}
 
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
@@ -142,7 +151,14 @@ func TestProcessContentMsg_Combiner_Errors(t *testing.T) {
 	}
 
 	log, hook := testLogger()
-	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, log: log}
+	defaultEvalQuery, err := rego.New(
+		rego.Query("data.specialContent.msg"),
+		rego.Load([]string{"../opa_modules/special_content.rego"}, nil),
+	).PrepareForEval(context.TODO())
+	assert.NoError(t, err)
+	evaluator := &Evaluator{evalQuery: &defaultEvalQuery}
+
+	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, log: log, evaluator: evaluator}
 
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
@@ -177,7 +193,20 @@ func TestProcessContentMsg_Forwarder_Errors(t *testing.T) {
 	dummyMsgProducer := DummyProducer{t: t, expError: fmt.Errorf("some producer error")}
 
 	log, hook := testLogger()
-	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: newForwarder(dummyMsgProducer, allowedContentTypes), log: log}
+	defaultEvalQuery, err := rego.New(
+		rego.Query("data.specialContent.msg"),
+		rego.Load([]string{"../opa_modules/special_content.rego"}, nil),
+	).PrepareForEval(context.TODO())
+	assert.NoError(t, err)
+	evaluator := &Evaluator{evalQuery: &defaultEvalQuery}
+
+	p := &MsgProcessor{
+		config:       config,
+		dataCombiner: dummyDataCombiner,
+		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes),
+		log:          log,
+		evaluator:    evaluator,
+	}
 
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
@@ -230,11 +259,19 @@ func TestProcessContentMsg_Successfully_Forwarded(t *testing.T) {
 	}
 
 	log, hook := testLogger()
+	defaultEvalQuery, err := rego.New(
+		rego.Query("data.specialContent.msg"),
+		rego.Load([]string{"../opa_modules/special_content.rego"}, nil),
+	).PrepareForEval(context.TODO())
+	assert.NoError(t, err)
+	evaluator := &Evaluator{evalQuery: &defaultEvalQuery}
+
 	p := &MsgProcessor{
 		config:       config,
 		dataCombiner: dummyDataCombiner,
 		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes),
 		log:          log,
+		evaluator:    evaluator,
 	}
 
 	assert.Nil(t, hook.LastEntry())
@@ -277,7 +314,20 @@ func TestProcessContentMsg_DeleteEvent_Successfully_Forwarded(t *testing.T) {
 	}
 
 	log, hook := testLogger()
-	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, forwarder: newForwarder(dummyMsgProducer, allowedContentTypes), log: log}
+	defaultEvalQuery, err := rego.New(
+		rego.Query("data.specialContent.msg"),
+		rego.Load([]string{"../opa_modules/special_content.rego"}, nil),
+	).PrepareForEval(context.TODO())
+	assert.NoError(t, err)
+	evaluator := &Evaluator{evalQuery: &defaultEvalQuery}
+
+	p := &MsgProcessor{
+		config:       config,
+		dataCombiner: dummyDataCombiner,
+		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes),
+		log:          log,
+		evaluator:    evaluator,
+	}
 
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
