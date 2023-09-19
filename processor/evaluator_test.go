@@ -11,7 +11,7 @@ import (
 
 func TestEvaluator_EvaluateMsgAccessLevel(t *testing.T) {
 	defaultEvalQuery, err := rego.New(
-		rego.Query("data.specialContent.msg"),
+		rego.Query("data.specialContent.message"),
 		rego.Load([]string{"../opa_modules/special_content.rego"}, nil),
 	).PrepareForEval(context.TODO())
 	assert.NoError(t, err)

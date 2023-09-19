@@ -139,6 +139,12 @@ func main() {
 		Desc:   "Kafka cluster arn",
 		EnvVar: "KAFKA_CLUSTER_ARN",
 	})
+	opaFileLocation := app.String(cli.StringOpt{
+		Name:   "opaFileLocation",
+		Value:  "",
+		Desc:   "Location of the OPA rule file.",
+		EnvVar: "OPA_FILE_LOCATION",
+	})
 
 	log := logger.NewUPPLogger(serviceName, *logLevel)
 
@@ -222,6 +228,11 @@ func main() {
 			}
 		}(producer)
 
+		evaluator, err := processor.CreateEvaluator(
+			"data.specialContent.msg",
+			[]string{*opaFileLocation},
+		)
+
 		processorConf := processor.NewMsgProcessorConfig(
 			*whitelistedContentUris,
 			*whitelistedMetadataOriginSystemHeaders,
@@ -232,6 +243,7 @@ func main() {
 			processorConf,
 			dataCombiner,
 			producer,
+			evaluator,
 			*whitelistedContentTypes,
 		)
 		go msgProcessor.ProcessMessages()

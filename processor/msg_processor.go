@@ -43,6 +43,7 @@ func NewMsgProcessor(
 	config MsgProcessorConfig,
 	dataCombiner dataCombiner,
 	producer messageProducer,
+	evaluator *Evaluator,
 	whitelistedContentTypes []string,
 ) *MsgProcessor {
 	return &MsgProcessor{
@@ -51,6 +52,7 @@ func NewMsgProcessor(
 		dataCombiner: dataCombiner,
 		forwarder:    newForwarder(producer, whitelistedContentTypes),
 		log:          log,
+		evaluator:    evaluator,
 	}
 }
 

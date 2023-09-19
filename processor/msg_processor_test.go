@@ -1,7 +1,6 @@
 package processor
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/Financial-Times/go-logger/v2"
 	"github.com/Financial-Times/kafka-client-go/v4"
-	"github.com/open-policy-agent/opa/rego"
 	hooks "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -114,12 +112,8 @@ func TestProcessContentMsg_SupportedContent_EmptyUUID(t *testing.T) {
 	config := MsgProcessorConfig{SupportedContentURIs: allowedUris}
 
 	log, hook := testLogger()
-	defaultEvalQuery, err := rego.New(
-		rego.Query("data.specialContent.msg"),
-		rego.Load([]string{"../opa_modules/special_content.rego"}, nil),
-	).PrepareForEval(context.TODO())
+	evaluator, err := CreateEvaluator("data.specialContent.message", []string{"../opa_modules/special_content.rego"})
 	assert.NoError(t, err)
-	evaluator := &Evaluator{evalQuery: &defaultEvalQuery}
 
 	p := &MsgProcessor{config: config, log: log, evaluator: evaluator}
 
@@ -151,12 +145,8 @@ func TestProcessContentMsg_Combiner_Errors(t *testing.T) {
 	}
 
 	log, hook := testLogger()
-	defaultEvalQuery, err := rego.New(
-		rego.Query("data.specialContent.msg"),
-		rego.Load([]string{"../opa_modules/special_content.rego"}, nil),
-	).PrepareForEval(context.TODO())
+	evaluator, err := CreateEvaluator("data.specialContent.message", []string{"../opa_modules/special_content.rego"})
 	assert.NoError(t, err)
-	evaluator := &Evaluator{evalQuery: &defaultEvalQuery}
 
 	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, log: log, evaluator: evaluator}
 
@@ -193,12 +183,8 @@ func TestProcessContentMsg_Forwarder_Errors(t *testing.T) {
 	dummyMsgProducer := DummyProducer{t: t, expError: fmt.Errorf("some producer error")}
 
 	log, hook := testLogger()
-	defaultEvalQuery, err := rego.New(
-		rego.Query("data.specialContent.msg"),
-		rego.Load([]string{"../opa_modules/special_content.rego"}, nil),
-	).PrepareForEval(context.TODO())
+	evaluator, err := CreateEvaluator("data.specialContent.message", []string{"../opa_modules/special_content.rego"})
 	assert.NoError(t, err)
-	evaluator := &Evaluator{evalQuery: &defaultEvalQuery}
 
 	p := &MsgProcessor{
 		config:       config,
@@ -259,12 +245,8 @@ func TestProcessContentMsg_Successfully_Forwarded(t *testing.T) {
 	}
 
 	log, hook := testLogger()
-	defaultEvalQuery, err := rego.New(
-		rego.Query("data.specialContent.msg"),
-		rego.Load([]string{"../opa_modules/special_content.rego"}, nil),
-	).PrepareForEval(context.TODO())
+	evaluator, err := CreateEvaluator("data.specialContent.message", []string{"../opa_modules/special_content.rego"})
 	assert.NoError(t, err)
-	evaluator := &Evaluator{evalQuery: &defaultEvalQuery}
 
 	p := &MsgProcessor{
 		config:       config,
@@ -314,12 +296,8 @@ func TestProcessContentMsg_DeleteEvent_Successfully_Forwarded(t *testing.T) {
 	}
 
 	log, hook := testLogger()
-	defaultEvalQuery, err := rego.New(
-		rego.Query("data.specialContent.msg"),
-		rego.Load([]string{"../opa_modules/special_content.rego"}, nil),
-	).PrepareForEval(context.TODO())
+	evaluator, err := CreateEvaluator("data.specialContent.message", []string{"../opa_modules/special_content.rego"})
 	assert.NoError(t, err)
-	evaluator := &Evaluator{evalQuery: &defaultEvalQuery}
 
 	p := &MsgProcessor{
 		config:       config,
@@ -338,6 +316,68 @@ func TestProcessContentMsg_DeleteEvent_Successfully_Forwarded(t *testing.T) {
 	assert.Equal(t, "some-tid1", hook.LastEntry().Data["transaction_id"])
 	assert.Equal(t, "0cef259d-030d-497d-b4ef-e8fa0ee6db6b", hook.LastEntry().Data["uuid"])
 	assert.Equal(t, "Message successfully forwarded", hook.LastEntry().Message)
+	assert.Equal(t, 1, len(hook.Entries))
+}
+
+func TestProcessContentMsg_SupportedContent_CentralBanking(t *testing.T) {
+	m, err := createMessage(map[string]string{"X-Request-Id": "some-tid1"}, "./testData/content-with-centralBanking-editorialDesk.json")
+	require.NoError(t, err)
+
+	cm := &ContentMessage{}
+	require.NoError(t, json.Unmarshal([]byte(m.Body), cm))
+
+	allowedUris := []string{"next-video-mapper", "upp-content-validator"}
+	allowedContentTypes := []string{"Article", "Video"}
+	config := MsgProcessorConfig{SupportedContentURIs: allowedUris}
+	dummyDataCombiner := DummyDataCombiner{
+		t:               t,
+		expectedContent: cm.ContentModel,
+		data: CombinedModel{
+			UUID:         "0cef259d-030d-497d-b4ef-e8fa0ee6db6b",
+			Deleted:      false,
+			LastModified: "2017-03-30T13:09:06.48Z",
+			ContentURI:   "http://upp-content-validator.svc.ft.com/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b",
+			Content: ContentModel{
+				"uuid":  "0cef259d-030d-497d-b4ef-e8fa0ee6db6b",
+				"title": "simple title",
+				"type":  "Article",
+			},
+		},
+	}
+
+	expMsg := kafka.FTMessage{
+		Headers: m.Headers,
+		Body:    `{"uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b","content":{"title":"simple title","type":"Article","uuid":"0cef259d-030d-497d-b4ef-e8fa0ee6db6b"},"internalContent":null,"metadata":null,"contentUri":"http://upp-content-validator.svc.ft.com/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b","lastModified":"2017-03-30T13:09:06.48Z","deleted":false}`,
+	}
+
+	dummyMsgProducer := DummyProducer{
+		t:       t,
+		expTID:  "some-tid1",
+		expUUID: dummyDataCombiner.data.UUID,
+		expMsg:  expMsg,
+	}
+
+	log, hook := testLogger()
+	evaluator, err := CreateEvaluator("data.specialContent.message", []string{"../opa_modules/special_content.rego"})
+	assert.NoError(t, err)
+
+	p := &MsgProcessor{
+		config:       config,
+		dataCombiner: dummyDataCombiner,
+		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes),
+		log:          log,
+		evaluator:    evaluator,
+	}
+
+	assert.Nil(t, hook.LastEntry())
+	assert.Equal(t, 0, len(hook.Entries))
+
+	p.processContentMsg(m)
+
+	assert.Equal(t, "error", hook.LastEntry().Level.String())
+	assert.Equal(t, "some-tid1", hook.LastEntry().Data["transaction_id"])
+	assert.Equal(t, "http://upp-content-validator.svc.ft.com/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b", hook.LastEntry().Data["contentUri"])
+	assert.Equal(t, "Skipped content due to access mismatch", hook.LastEntry().Message)
 	assert.Equal(t, 1, len(hook.Entries))
 }
 

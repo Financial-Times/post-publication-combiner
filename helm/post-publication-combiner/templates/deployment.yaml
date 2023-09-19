@@ -76,6 +76,8 @@ spec:
             configMapKeyRef:
               name: global-config
               key: msk.kafka.broker.url
+        - name: OPA_FILE_LOCATION
+          value: {{ .Values.env.OPA_FILE_LOCATION }}
         ports:
         - containerPort: 8080
         livenessProbe:
