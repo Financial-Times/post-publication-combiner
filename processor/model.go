@@ -1,10 +1,9 @@
 package processor
 
 type ContentMessage struct {
-	ContentURI    string       `json:"contentUri"`
-	ContentModel  ContentModel `json:"payload"`
-	LastModified  string       `json:"lastModified"`
-	EditorialDesk string       `json:"editorialDesk"`
+	ContentURI   string       `json:"contentUri"`
+	ContentModel ContentModel `json:"payload"`
+	LastModified string       `json:"lastModified"`
 }
 
 type ContentModel map[string]interface{}
@@ -69,6 +68,10 @@ func (cm ContentModel) getType() string {
 
 func (cm ContentModel) getLastModified() string {
 	return getMapValueAsString("lastModified", cm)
+}
+
+func (cm ContentModel) getEditorialDesk() string {
+	return getMapValueAsString("editorialDesk", cm)
 }
 
 func getMapValueAsString(key string, data map[string]interface{}) string {

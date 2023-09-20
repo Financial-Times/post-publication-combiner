@@ -3,6 +3,7 @@
     "uuid": "0cef259d-030d-497d-b4ef-e8fa0ee6db6b",
     "title": "ididn’tdoanything",
     "type": "Article",
+    "editorialDesk": "/FT/Professional/Central Banking",
     "identifiers": [
       {
         "authority": "Spark-authority",
@@ -10,7 +11,6 @@
       }
     ]
   },
-  "editorialDesk": "/FT/Professional/Central Banking",
   "contentUri": "http://upp-content-validator.svc.ft.com/content/0cef259d-030d-497d-b4ef-e8fa0ee6db6b",
   "lastModified": "2017-03-30T13:09:06.48Z"
 }

@@ -87,8 +87,6 @@ func (p *MsgProcessor) processContentMsg(m kafka.FTMessage) {
 		WithTransactionID(tid).
 		WithField("processor", "content")
 
-	log.Infof("kafka msg: %v", m.Body)
-
 	// parse message - collect data, then forward it to the next queue
 	var cm ContentMessage
 	if err := json.Unmarshal([]byte(m.Body), &cm); err != nil {
@@ -103,13 +101,10 @@ func (p *MsgProcessor) processContentMsg(m kafka.FTMessage) {
 	}
 
 	uuid := cm.ContentModel.getUUID()
-	input := map[string]interface{}{
-		"EditorialDesk": cm.EditorialDesk,
+	err := p.evaluator.EvaluateMsgAccessLevel(map[string]interface{}{
+		"EditorialDesk": cm.ContentModel.getEditorialDesk(),
 		"UUID":          uuid,
-	}
-	log.Infof("eval input: %v", input)
-	err := p.evaluator.EvaluateMsgAccessLevel(input)
-	log.Infof("eval error: %e", err)
+	})
 	if err != nil {
 		log.WithField("contentUri", cm.ContentURI).Error(err)
 		return
