@@ -70,6 +70,10 @@ func (cm ContentModel) getLastModified() string {
 	return getMapValueAsString("lastModified", cm)
 }
 
+func (cm ContentModel) getEditorialDesk() string {
+	return getMapValueAsString("editorialDesk", cm)
+}
+
 func getMapValueAsString(key string, data map[string]interface{}) string {
 	if val, ok := data[key]; ok && val != nil {
 		return val.(string)

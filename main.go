@@ -139,6 +139,12 @@ func main() {
 		Desc:   "Kafka cluster arn",
 		EnvVar: "KAFKA_CLUSTER_ARN",
 	})
+	opaFileLocation := app.String(cli.StringOpt{
+		Name:   "opaFileLocation",
+		Value:  "",
+		Desc:   "Location of the OPA rule file.",
+		EnvVar: "OPA_FILE_LOCATION",
+	})
 
 	log := logger.NewUPPLogger(serviceName, *logLevel)
 
@@ -190,8 +196,7 @@ func main() {
 		go consumer.Start(messageHandler)
 		defer func(consumer *kafka.Consumer) {
 			log.Infof("Closing consumer")
-			err := consumer.Close()
-			if err != nil {
+			if err = consumer.Close(); err != nil {
 				log.WithError(err).Error("Consumer could not stop")
 			}
 		}(consumer)
@@ -211,17 +216,21 @@ func main() {
 			producerConfig.ClusterArn = kafkaClusterArn
 		}
 
-		messageProducer, err := kafka.NewProducer(producerConfig)
+		producer, err := kafka.NewProducer(producerConfig)
 		if err != nil {
 			log.WithError(err).Fatal("Could not create message producer")
 		}
-
 		defer func(messageProducer *kafka.Producer) {
 			log.Infof("Closing message producer")
-			if err := messageProducer.Close(); err != nil {
+			if err = messageProducer.Close(); err != nil {
 				log.WithError(err).Error("Message producer could not stop")
 			}
-		}(messageProducer)
+		}(producer)
+
+		evaluator, err := processor.CreateEvaluator(
+			"data.specialContent.message",
+			[]string{*opaFileLocation},
+		)
 
 		processorConf := processor.NewMsgProcessorConfig(
 			*whitelistedContentUris,
@@ -232,7 +241,8 @@ func main() {
 			messagesCh,
 			processorConf,
 			dataCombiner,
-			messageProducer,
+			producer,
+			evaluator,
 			*whitelistedContentTypes,
 		)
 		go msgProcessor.ProcessMessages()
@@ -254,20 +264,20 @@ func main() {
 
 		defer func(forcedMessageProducer *kafka.Producer) {
 			log.Infof("Closing force messages producer")
-			if err := forcedMessageProducer.Close(); err != nil {
+			if err = forcedMessageProducer.Close(); err != nil {
 				log.WithError(err).Error("Force message producer could not stop")
 			}
 		}(forcedMessageProducer)
 
-		requestProcessor := processor.NewRequestProcessor(dataCombiner, forcedMessageProducer, *whitelistedContentTypes)
+		proc := processor.NewRequestProcessor(dataCombiner, forcedMessageProducer, *whitelistedContentTypes)
 
 		reqHandler := &requestHandler{
-			requestProcessor: requestProcessor,
+			requestProcessor: proc,
 			log:              log,
 		}
 
 		// Since the health check for all producers and consumers just checks /topics for a response, we pick a producer and a consumer at random
-		healthcheckHandler := NewCombinerHealthcheck(log, messageProducer, consumer, client, *docStoreAPIBaseURL, *internalContentAPIBaseURL)
+		healthcheckHandler := NewCombinerHealthcheck(log, producer, consumer, client, *docStoreAPIBaseURL, *internalContentAPIBaseURL)
 
 		routeRequests(log, port, reqHandler, healthcheckHandler)
 	}
