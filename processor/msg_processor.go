@@ -131,6 +131,10 @@ func (p *MsgProcessor) processContentMsg(m kafka.FTMessage) {
 		combinedMSG.ContentURI = cm.ContentURI
 	}
 
+	if combinedMSG.InternalContent == nil {
+		log.Warn("Could not find internal content when processing a content publish event.")
+	}
+
 	if err = p.forwarder.filterAndForwardMsg(m.Headers, &combinedMSG); err != nil {
 		log.WithError(err).Error("Failed to forward message to Kafka")
 		return
@@ -163,6 +167,10 @@ func (p *MsgProcessor) processMetadataMsg(m kafka.FTMessage) {
 	if err != nil {
 		log.WithError(err).Error("Error obtaining the combined message. Content couldn't get read. Message will be skipped.")
 		return
+	}
+
+	if combinedMSG.InternalContent == nil {
+		log.Warn("Could not find internal content when processing an annotations publish event.")
 	}
 
 	uuid := combinedMSG.Content.getUUID()

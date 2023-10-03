@@ -203,7 +203,7 @@ func TestProcessContentMsg_Forwarder_Errors(t *testing.T) {
 	assert.Equal(t, "some-tid1", hook.LastEntry().Data["transaction_id"])
 	assert.Equal(t, "Failed to forward message to Kafka", hook.LastEntry().Message)
 	assert.ErrorIs(t, hook.LastEntry().Data["error"].(error), dummyMsgProducer.expError)
-	assert.Equal(t, 1, len(hook.Entries))
+	assert.Equal(t, 2, len(hook.Entries))
 }
 
 func TestProcessContentMsg_Successfully_Forwarded(t *testing.T) {
@@ -264,7 +264,7 @@ func TestProcessContentMsg_Successfully_Forwarded(t *testing.T) {
 	assert.Equal(t, "info", hook.LastEntry().Level.String())
 	assert.Equal(t, "some-tid1", hook.LastEntry().Data["transaction_id"])
 	assert.Equal(t, "Message successfully forwarded", hook.LastEntry().Message)
-	assert.Equal(t, 1, len(hook.Entries))
+	assert.Equal(t, 2, len(hook.Entries))
 }
 
 func TestProcessContentMsg_DeleteEvent_Successfully_Forwarded(t *testing.T) {
@@ -316,7 +316,7 @@ func TestProcessContentMsg_DeleteEvent_Successfully_Forwarded(t *testing.T) {
 	assert.Equal(t, "some-tid1", hook.LastEntry().Data["transaction_id"])
 	assert.Equal(t, "0cef259d-030d-497d-b4ef-e8fa0ee6db6b", hook.LastEntry().Data["uuid"])
 	assert.Equal(t, "Message successfully forwarded", hook.LastEntry().Message)
-	assert.Equal(t, 1, len(hook.Entries))
+	assert.Equal(t, 2, len(hook.Entries))
 }
 
 func TestProcessContentMsg_SupportedContent_CentralBanking(t *testing.T) {
@@ -485,7 +485,7 @@ func TestProcessMetadataMsg_Forwarder_Errors(t *testing.T) {
 	assert.Equal(t, "some_uuid", hook.LastEntry().Data["uuid"])
 	assert.Equal(t, "Failed to forward message to Kafka", hook.LastEntry().Message)
 	assert.ErrorIs(t, hook.LastEntry().Data["error"].(error), dummyMsgProducer.expError)
-	assert.Equal(t, 1, len(hook.Entries))
+	assert.Equal(t, 2, len(hook.Entries))
 }
 func TestProcessMetadataMsg_Forward_Skipped(t *testing.T) {
 	m, err := createMessage(map[string]string{"X-Request-Id": "some-tid1", "Origin-System-Id": "http://cmdb.ft.com/systems/binding-service"}, "./testData/annotations.json")
@@ -512,7 +512,7 @@ func TestProcessMetadataMsg_Forward_Skipped(t *testing.T) {
 	assert.Equal(t, "warning", hook.LastEntry().Level.String())
 	assert.Equal(t, "some-tid1", hook.LastEntry().Data["transaction_id"])
 	assert.Equal(t, "Skipped. Could not find content when processing an annotations publish event.", hook.LastEntry().Message)
-	assert.Equal(t, 1, len(hook.Entries))
+	assert.Equal(t, 2, len(hook.Entries))
 }
 
 func TestProcessMetadataMsg_Successfully_Forwarded(t *testing.T) {
