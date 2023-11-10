@@ -22,6 +22,4 @@ WORKDIR /
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /artifacts/* /
 
-COPY ./opa_modules ./opa_modules
-
 CMD [ "/post-publication-combiner" ]

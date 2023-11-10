@@ -67,8 +67,6 @@ spec:
           value: "{{ .Values.env.CONTENT_COLLECTION_RW_ENDPOINT }}"
         - name: WHITELISTED_METADATA_ORIGIN_SYSTEM_HEADERS
           value: "{{ .Values.env.WHITELISTED_METADATA_ORIGIN_SYSTEM_HEADERS }}"
-        - name: WHITELISTED_CONTENT_URIS
-          value: "{{ .Values.env.WHITELISTED_CONTENT_URIS }}"
         - name: WHITELISTED_CONTENT_TYPES
           value: "{{ .Values.env.WHITELISTED_CONTENT_TYPES }}"
         - name: KAFKA_ADDR
@@ -76,8 +74,10 @@ spec:
             configMapKeyRef:
               name: global-config
               key: msk.kafka.broker.url
-        - name: OPA_FILE_LOCATION
-          value: {{ .Values.env.OPA_FILE_LOCATION }}
+        - name: OPEN_POLICY_AGENT_ADDRESS
+          value: {{ .Values.env.OPEN_POLICY_AGENT_ADDRESS }}
+        - name: OPEN_POLICY_AGENT_POLICY_PATH
+          value: {{ .Values.env.OPEN_POLICY_AGENT_POLICY_PATH }}
         ports:
         - containerPort: 8080
         livenessProbe:
@@ -92,4 +92,45 @@ spec:
           periodSeconds: 30
         resources:
 {{ toYaml .Values.resources | indent 12 }}
+      {{- if .Values.openPolicyAgentSidecar }}
+      - name: "{{ .Values.openPolicyAgentSidecar.name }}"
+        image: "{{ .Values.openPolicyAgentSidecar.repository }}:{{ .Values.openPolicyAgentSidecar.tag }}"
+        imagePullPolicy: {{ .Values.openPolicyAgentSidecar.pullPolicy }}
+        env:
+          - name: POLICY_BUCKET
+            valueFrom:
+              configMapKeyRef:
+                name: global-config
+                key: opa.policy.bucket
+        ports:
+          - name: http
+            containerPort: 8181
+        livenessProbe:
+          httpGet:
+            path: /health
+            scheme: HTTP
+            port: 8181
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health?bundle=true
+            scheme: HTTP
+            port: 8181
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        args:
+          - "run"
+          - "--ignore=.*"
+          - "--server"
+          - "--set=decision_logs.console=true"
+          - "--log-format=json-pretty"
+          - "--set=services.bundlesS3Bucket.url=$(POLICY_BUCKET)"
+          # The region below is hardcoded because the default location for the bucket (the one appended to the url above) is set to eu-west-1, it’s not a mistake.
+          - "--set=services.bundlesS3Bucket.credentials.s3_signing.web_identity_credentials.aws_region=eu-west-1"
+          - "--set=bundles.postPublicationCombiner.service=bundlesS3Bucket"
+          - "--set=bundles.postPublicationCombiner.resource=post_publication_combiner.bundle.tar.gz"
+          - "--set=bundles.postPublicationCombiner.polling.min_delay_seconds=120"
+          - "--set=bundles.postPublicationCombiner.polling.max_delay_seconds=300"
+      {{- end}}
 
