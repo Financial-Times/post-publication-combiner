@@ -115,12 +115,6 @@ func main() {
 		Desc:   "Origin-System-Ids that are supported to be processed from the PostPublicationEvents queue.",
 		EnvVar: "WHITELISTED_METADATA_ORIGIN_SYSTEM_HEADERS",
 	})
-	whitelistedContentUris := app.Strings(cli.StringsOpt{
-		Name:   "whitelistedContentURIs",
-		Value:  []string{"next-video-mapper", "upp-content-validator"},
-		Desc:   "Space separated list with content URI substrings - to identify accepted content types.",
-		EnvVar: "WHITELISTED_CONTENT_URIS",
-	})
 	whitelistedContentTypes := app.Strings(cli.StringsOpt{
 		Name:   "whitelistedContentTypes",
 		Value:  []string{"Article", "Video", "MediaResource", "Audio", ""},
@@ -139,11 +133,15 @@ func main() {
 		Desc:   "Kafka cluster arn",
 		EnvVar: "KAFKA_CLUSTER_ARN",
 	})
-	opaFileLocation := app.String(cli.StringOpt{
-		Name:   "opaFileLocation",
-		Value:  "",
-		Desc:   "Location of the OPA rule file.",
-		EnvVar: "OPA_FILE_LOCATION",
+	openPolicyAgentAddress := app.String(cli.StringOpt{
+		Name:   "openPolicyAgentAddress",
+		Desc:   "Open policy agent sidecar address",
+		EnvVar: "OPEN_POLICY_AGENT_ADDRESS",
+	})
+	openPolicyAgentPolicyPath := app.String(cli.StringOpt{
+		Name:   "openPolicyAgentPolicyPath",
+		Desc:   "The path to the opa module in OPA module",
+		EnvVar: "OPEN_POLICY_AGENT_POLICY_PATH",
 	})
 
 	log := logger.NewUPPLogger(serviceName, *logLevel)
@@ -227,13 +225,12 @@ func main() {
 			}
 		}(producer)
 
-		evaluator, err := processor.CreateEvaluator(
-			"data.specialContent.message",
-			[]string{*opaFileLocation},
-		)
+		paths := map[string]string{
+			processor.OpaContentMsgEvaluatorPackageName: *openPolicyAgentPolicyPath,
+		}
+		evaluator := processor.CreateEvaluator(*openPolicyAgentAddress, paths, http.DefaultClient)
 
 		processorConf := processor.NewMsgProcessorConfig(
-			*whitelistedContentUris,
 			*whitelistedMetadataOriginSystemHeaders,
 		)
 		msgProcessor := processor.NewMsgProcessor(

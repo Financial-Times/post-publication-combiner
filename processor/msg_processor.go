@@ -16,24 +16,26 @@ var (
 	ErrInvalidContentType = fmt.Errorf("invalid content type")
 )
 
+type opaEvaluator interface {
+	EvaluateMsgAccessLevel(query map[string]interface{}, pathKey, varName string) (string, error)
+}
+
 type MsgProcessor struct {
 	src          <-chan *kafka.FTMessage
 	config       MsgProcessorConfig
 	dataCombiner dataCombiner
 	forwarder    *forwarder
-	evaluator    *Evaluator
+	evaluator    opaEvaluator
 	log          *logger.UPPLogger
 }
 
 type MsgProcessorConfig struct {
-	SupportedContentURIs []string
-	SupportedHeaders     []string
+	SupportedHeaders []string
 }
 
-func NewMsgProcessorConfig(supportedURIs, supportedHeaders []string) MsgProcessorConfig {
+func NewMsgProcessorConfig(supportedHeaders []string) MsgProcessorConfig {
 	return MsgProcessorConfig{
-		SupportedContentURIs: supportedURIs,
-		SupportedHeaders:     supportedHeaders,
+		SupportedHeaders: supportedHeaders,
 	}
 }
 
@@ -43,7 +45,7 @@ func NewMsgProcessor(
 	config MsgProcessorConfig,
 	dataCombiner dataCombiner,
 	producer messageProducer,
-	evaluator *Evaluator,
+	evaluator opaEvaluator,
 	whitelistedContentTypes []string,
 ) *MsgProcessor {
 	return &MsgProcessor{
@@ -94,26 +96,30 @@ func (p *MsgProcessor) processContentMsg(m kafka.FTMessage) {
 		return
 	}
 
-	// next-video, upp-content-validator - the system origin is not enough to help us filter. Filter by contentUri.
-	if !containsSubstringOf(p.config.SupportedContentURIs, cm.ContentURI) {
-		log.WithField("contentUri", cm.ContentURI).Info("Skipped content with unsupported contentUri")
+	var openPolicyAgentInput map[string]interface{}
+	if err := json.Unmarshal([]byte(m.Body), &openPolicyAgentInput); err != nil {
+		log.WithError(err).Error("Could not unmarshal message")
+		return
+	}
+
+	result, err := p.evaluator.EvaluateMsgAccessLevel(
+		openPolicyAgentInput,
+		OpaContentMsgEvaluatorPackageName,
+		OpaVariableName,
+	)
+	if err != nil {
+		log.WithError(err).Error("Failed while evaluating message.")
+		return
+	}
+	if result != "" {
+		log.WithField("contentUri", cm.ContentURI).Error(result)
 		return
 	}
 
 	uuid := cm.ContentModel.getUUID()
-	err := p.evaluator.EvaluateMsgAccessLevel(map[string]interface{}{
-		"EditorialDesk": cm.ContentModel.getEditorialDesk(),
-		"UUID":          uuid,
-	})
-	if err != nil {
-		log.WithField("contentUri", cm.ContentURI).Error(err)
-		return
-	}
-
 	log = log.WithUUID(uuid)
 
 	var combinedMSG CombinedModel
-
 	if cm.ContentModel.isDeleted() {
 		combinedMSG.UUID = uuid
 		combinedMSG.ContentURI = cm.ContentURI

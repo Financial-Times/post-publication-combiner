@@ -2,22 +2,3 @@
 replicaCount: 2
 service:
   name: post-publication-combiner
-  serviceAccountName: "eksctl-post-publication-combiner-serviceaccount"
-env:
-  PORT: 8080
-  KAFKA_CONTENT_TOPIC_NAME: PostPublicationEvents
-  KAFKA_METADATA_TOPIC_NAME: PostConceptAnnotations
-  KAFKA_COMBINED_TOPIC_NAME: CombinedPostPublicationEvents
-  KAFKA_FORCED_COMBINED_TOPIC_NAME: ForcedCombinedPostPublicationEvents
-  KAFKA_CONSUMER_GROUP: post-publication-combiner
-  KAFKA_LAG_TOLERANCE: 120
-  DOCUMENT_STORE_BASE_URL: http://document-store-api:8080
-  DOCUMENT_STORE_API_ENDPOINT: /content/{uuid}
-  INTERNAL_CONTENT_API_BASE_URL: http://internal-content-api:8080
-  INTERNAL_CONTENT_API_ENDPOINT: "/internalcontent/{uuid}?unrollContent=true"
-  CONTENT_COLLECTION_RW_BASE_URL: http://content-collection-rw-neo4j:8080
-  CONTENT_COLLECTION_RW_ENDPOINT: "/content-collection/content-package/{uuid}"
-  WHITELISTED_METADATA_ORIGIN_SYSTEM_HEADERS: "http://cmdb.ft.com/systems/pac, http://cmdb.ft.com/systems/next-video-editor"
-  WHITELISTED_CONTENT_URIS: "next-video-mapper, upp-content-validator"
-  WHITELISTED_CONTENT_TYPES: "Article, Video, MediaResource, Audio, ContentPackage, LiveBlogPackage, LiveBlogPost, ContentCollection, ImageSet, Image, Graphic, LiveEvent, Clip, ClipSet, ,"
-  OPA_FILE_LOCATION: "./opa_modules/special_content.rego"
