@@ -128,7 +128,7 @@ spec:
           - "--set=services.bundlesS3Bucket.url=$(POLICY_BUCKET)"
           - "--set=services.bundlesS3Bucket.credentials.s3_signing.web_identity_credentials.aws_region=$(AWS_REGION)"
           - "--set=bundles.postPublicationCombiner.service=bundlesS3Bucket"
-          - "--set=bundles.postPublicationCombiner.resource=post_publication_combiner.bundle.tar.gz"
+          - "--set=bundles.postPublicationCombiner.resource=post-publication-combiner.bundle.tar.gz"
           - "--set=bundles.postPublicationCombiner.polling.min_delay_seconds=120"
           - "--set=bundles.postPublicationCombiner.polling.max_delay_seconds=300"
       {{- end}}
