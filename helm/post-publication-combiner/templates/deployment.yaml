@@ -101,7 +101,7 @@ spec:
             valueFrom:
               configMapKeyRef:
                 name: global-config
-                key: opa.policy.bucket
+                key: opa.policy2.bucket
         ports:
           - name: http
             containerPort: 8181
@@ -126,8 +126,7 @@ spec:
           - "--set=decision_logs.console=true"
           - "--log-format=json-pretty"
           - "--set=services.bundlesS3Bucket.url=$(POLICY_BUCKET)"
-          # The region below is hardcoded because the default location for the bucket (the one appended to the url above) is set to eu-west-1, it’s not a mistake.
-          - "--set=services.bundlesS3Bucket.credentials.s3_signing.web_identity_credentials.aws_region=eu-west-1"
+          - "--set=services.bundlesS3Bucket.credentials.s3_signing.web_identity_credentials.aws_region=$(AWS_REGION)"
           - "--set=bundles.postPublicationCombiner.service=bundlesS3Bucket"
           - "--set=bundles.postPublicationCombiner.resource=post_publication_combiner.bundle.tar.gz"
           - "--set=bundles.postPublicationCombiner.polling.min_delay_seconds=120"
