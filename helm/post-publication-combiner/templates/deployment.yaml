@@ -123,7 +123,7 @@ spec:
           - "run"
           - "--ignore=.*"
           - "--server"
-          - "--set=decision_logs.console=true"
+          - "--log-level=error"
           - "--log-format=json-pretty"
           - "--set=services.bundlesS3Bucket.url=$(POLICY_BUCKET)"
           - "--set=services.bundlesS3Bucket.credentials.s3_signing.web_identity_credentials.aws_region=$(AWS_REGION)"
