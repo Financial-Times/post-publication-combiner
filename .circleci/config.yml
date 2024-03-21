@@ -3,9 +3,9 @@ orbs:
   ft-golang-ci: financial-times/golang-ci@1
 jobs:
   dredd:
-    working_directory: /post-publication-combiner
+    working_directory: ~/post-publication-combiner
     docker:
-      - image: golang:1
+      - image: cimg/go:1.22-node
         environment:
           KAFKA_PROXY_ADDR: "http://localhost:9000"
           KAFKA_ADDR: "localhost:29092"
@@ -47,35 +47,19 @@ jobs:
 
             go build -v
       - run:
-          name: Install OPA CLI
-          command: |
-            curl -L -o opa https://openpolicyagent.org/downloads/v0.61.0/opa_linux_amd64_static
-            chmod +x opa
-            mv opa /usr/local/bin
-      - run:
-          name: Clone OPA policies and run the server
-          command: |
-            cd ../
-            git clone https://github.com/Financial-Times/cm-opa-policies.git
-            chmod +x post-publication-combiner/wait-for-endpoint.sh
-            mv post-publication-combiner/wait-for-endpoint.sh cm-opa-policies/wait-for-endpoint.sh
-            cd cm-opa-policies
-            opa build -b post-publication-combiner/ -o post-publication-combiner.bundle.tar.gz -O 2 # bundle the policies
-            nohup opa run --server post-publication-combiner.bundle.tar.gz --addr=0.0.0.0:8181 --log-format=json-pretty --set=decision_logs.console=true > opa.log 2>&1 & # The nohup command is used to run the OPA server process independent of the terminal. The & at the end of the command puts the process into the background. > opa.log 2>&1 redirects both stdout and stderr to a file named opa.log, so you can inspect the server's output later if needed.
-            ./wait-for-endpoint.sh 'http://0.0.0.0:8181/health?bundles' 15
-      - run:
           name: Download Dredd
           command: |
-            curl -sL https://deb.nodesource.com/setup_12.x | bash -
-            DEBIAN_FRONTEND=noninteractive apt-get install -y nodejs=12.\*
-            npm install -g --unsafe-perm --loglevel warn --user 0 --no-progress dredd@8.0.0
-            rm -rf /var/lib/apt/lists/*
+            sudo npm install -g --unsafe-perm --loglevel warn --user 0 --no-progress dredd@8.0.0
+            sudo rm -rf ~/var/lib/apt/lists/*
       - run:
           name: Dredd API Testing
           command: dredd
 workflows:
   tests_and_docker:
     jobs:
+      - dredd: 
+          context:
+            - cm-team-github
       - ft-golang-ci/build-and-test:
           name: build-and-test-project
           context:
