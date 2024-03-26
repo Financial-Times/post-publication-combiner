@@ -11,6 +11,7 @@ import (
 
 	"github.com/Financial-Times/go-logger/v2"
 	"github.com/Financial-Times/kafka-client-go/v4"
+	"github.com/Financial-Times/post-publication-combiner/v2/policy"
 	hooks "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,13 +24,13 @@ func testLogger() (*logger.UPPLogger, *hooks.Hook) {
 	return log, hook
 }
 
-type mockEvaluator struct {
-	returnString string
+type mockOpaAgent struct {
+	returnResult *policy.ContentPolicyResult
 	returnError  error
 }
 
-func (m mockEvaluator) EvaluateMsgAccessLevel(_ map[string]interface{}, _ string, _ string) (string, error) {
-	return m.returnString, m.returnError
+func (m mockOpaAgent) EvaluateContentPolicy(_ map[string]interface{}) (*policy.ContentPolicyResult, error) {
+	return m.returnResult, m.returnError
 }
 
 func TestMsgProcessor_ProcessMessages_Stays_Open_While_Channel_Is_Open(t *testing.T) {
@@ -106,9 +107,11 @@ func TestProcessContentMsg_Combiner_Errors(t *testing.T) {
 	}
 
 	log, hook := testLogger()
-	evaluator := mockEvaluator{}
+	opaAgent := mockOpaAgent{
+		returnResult: &policy.ContentPolicyResult{},
+	}
 
-	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, log: log, evaluator: evaluator}
+	p := &MsgProcessor{config: config, dataCombiner: dummyDataCombiner, log: log, opaAgent: opaAgent}
 
 	assert.Nil(t, hook.LastEntry())
 	assert.Equal(t, 0, len(hook.Entries))
@@ -142,14 +145,16 @@ func TestProcessContentMsg_Forwarder_Errors(t *testing.T) {
 	dummyMsgProducer := DummyProducer{t: t, expError: fmt.Errorf("some producer error")}
 
 	log, hook := testLogger()
-	evaluator := mockEvaluator{}
+	opaAgent := mockOpaAgent{
+		returnResult: &policy.ContentPolicyResult{},
+	}
 
 	p := &MsgProcessor{
 		config:       config,
 		dataCombiner: dummyDataCombiner,
 		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes),
 		log:          log,
-		evaluator:    evaluator,
+		opaAgent:     opaAgent,
 	}
 
 	assert.Nil(t, hook.LastEntry())
@@ -202,14 +207,16 @@ func TestProcessContentMsg_Successfully_Forwarded(t *testing.T) {
 	}
 
 	log, hook := testLogger()
-	evaluator := mockEvaluator{}
+	opaAgent := mockOpaAgent{
+		returnResult: &policy.ContentPolicyResult{},
+	}
 
 	p := &MsgProcessor{
 		config:       config,
 		dataCombiner: dummyDataCombiner,
 		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes),
 		log:          log,
-		evaluator:    evaluator,
+		opaAgent:     opaAgent,
 	}
 
 	assert.Nil(t, hook.LastEntry())
@@ -251,14 +258,16 @@ func TestProcessContentMsg_DeleteEvent_Successfully_Forwarded(t *testing.T) {
 	}
 
 	log, hook := testLogger()
-	evaluator := mockEvaluator{}
+	opaAgent := mockOpaAgent{
+		returnResult: &policy.ContentPolicyResult{},
+	}
 
 	p := &MsgProcessor{
 		config:       config,
 		dataCombiner: dummyDataCombiner,
 		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes),
 		log:          log,
-		evaluator:    evaluator,
+		opaAgent:     opaAgent,
 	}
 
 	assert.Nil(t, hook.LastEntry())

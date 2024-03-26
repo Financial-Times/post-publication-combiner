@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/Financial-Times/kafka-client-go/v4"
+	"github.com/Financial-Times/post-publication-combiner/v2/policy"
 
 	"github.com/Financial-Times/go-logger/v2"
 	"github.com/dchest/uniuri"
@@ -16,16 +17,12 @@ var (
 	ErrInvalidContentType = fmt.Errorf("invalid content type")
 )
 
-type opaEvaluator interface {
-	EvaluateMsgAccessLevel(query map[string]interface{}, pathKey, varName string) (string, error)
-}
-
 type MsgProcessor struct {
 	src          <-chan *kafka.FTMessage
 	config       MsgProcessorConfig
 	dataCombiner dataCombiner
 	forwarder    *forwarder
-	evaluator    opaEvaluator
+	opaAgent     policy.Agent
 	log          *logger.UPPLogger
 }
 
@@ -45,16 +42,16 @@ func NewMsgProcessor(
 	config MsgProcessorConfig,
 	dataCombiner dataCombiner,
 	producer messageProducer,
-	evaluator opaEvaluator,
+	opaAgent policy.Agent,
 	whitelistedContentTypes []string,
-) *MsgProcessor {
-	return &MsgProcessor{
+) MsgProcessor {
+	return MsgProcessor{
 		src:          srcCh,
 		config:       config,
 		dataCombiner: dataCombiner,
 		forwarder:    newForwarder(producer, whitelistedContentTypes),
 		log:          log,
-		evaluator:    evaluator,
+		opaAgent:     opaAgent,
 	}
 }
 
@@ -96,23 +93,20 @@ func (p *MsgProcessor) processContentMsg(m kafka.FTMessage) {
 		return
 	}
 
-	var openPolicyAgentInput map[string]interface{}
-	if err := json.Unmarshal([]byte(m.Body), &openPolicyAgentInput); err != nil {
+	var opaInput map[string]interface{}
+	if err := json.Unmarshal([]byte(m.Body), &opaInput); err != nil {
 		log.WithError(err).Error("Could not unmarshal message")
 		return
 	}
 
-	result, err := p.evaluator.EvaluateMsgAccessLevel(
-		openPolicyAgentInput,
-		OpaContentMsgEvaluatorPackageName,
-		OpaVariableName,
-	)
+	result, err := p.opaAgent.EvaluateContentPolicy(opaInput)
+
 	if err != nil {
-		log.WithError(err).Error("Failed while evaluating message.")
+		log.WithError(err).Error("Failed while evaluating message")
 		return
 	}
-	if result != "" {
-		log.WithField("contentUri", cm.ContentURI).Error(result)
+	if result.Skip {
+		log.Error(strings.Join(result.Reasons[:], ", "))
 		return
 	}
 

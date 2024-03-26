@@ -13,6 +13,8 @@ import (
 	"github.com/Financial-Times/go-logger/v2"
 	"github.com/Financial-Times/http-handlers-go/v2/httphandlers"
 	"github.com/Financial-Times/kafka-client-go/v4"
+	"github.com/Financial-Times/opa-client-go"
+	"github.com/Financial-Times/post-publication-combiner/v2/policy"
 	"github.com/Financial-Times/post-publication-combiner/v2/processor"
 	status "github.com/Financial-Times/service-status-go/httphandlers"
 	"github.com/gorilla/handlers"
@@ -138,7 +140,7 @@ func main() {
 		Desc:   "Open policy agent sidecar address",
 		EnvVar: "OPEN_POLICY_AGENT_ADDRESS",
 	})
-	openPolicyAgentPolicyPath := app.String(cli.StringOpt{
+	opaPolicyPath := app.String(cli.StringOpt{
 		Name:   "openPolicyAgentPolicyPath",
 		Desc:   "The path to the opa module in OPA module",
 		EnvVar: "OPEN_POLICY_AGENT_POLICY_PATH",
@@ -226,9 +228,11 @@ func main() {
 		}(producer)
 
 		paths := map[string]string{
-			processor.OpaContentMsgEvaluatorPackageName: *openPolicyAgentPolicyPath,
+			policy.PackageName: *opaPolicyPath,
 		}
-		evaluator := processor.CreateEvaluator(*openPolicyAgentAddress, paths, http.DefaultClient)
+
+		opaClient := opa.NewOpenPolicyAgentClient(*openPolicyAgentAddress, paths, opa.WithLogger(log))
+		opaAgent := policy.NewOpenPolicyAgent(opaClient, log)
 
 		processorConf := processor.NewMsgProcessorConfig(
 			*whitelistedMetadataOriginSystemHeaders,
@@ -239,7 +243,7 @@ func main() {
 			processorConf,
 			dataCombiner,
 			producer,
-			evaluator,
+			opaAgent,
 			*whitelistedContentTypes,
 		)
 		go msgProcessor.ProcessMessages()

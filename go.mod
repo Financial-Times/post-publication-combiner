@@ -7,6 +7,7 @@ require (
 	github.com/Financial-Times/go-logger/v2 v2.0.1
 	github.com/Financial-Times/http-handlers-go/v2 v2.3.0
 	github.com/Financial-Times/kafka-client-go/v4 v4.2.2
+	github.com/Financial-Times/opa-client-go v1.0.0
 	github.com/Financial-Times/service-status-go v0.3.0
 	github.com/dchest/uniuri v1.2.0
 	github.com/google/uuid v1.3.1

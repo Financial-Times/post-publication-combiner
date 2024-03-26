@@ -18,7 +18,7 @@ resources:
 openPolicyAgentSidecar:
   name: open-policy-agent
   repository: openpolicyagent/opa
-  tag: 0.58.0
+  tag: 0.62.1
   pullPolicy: IfNotPresent
 env:
   PORT: 8080
