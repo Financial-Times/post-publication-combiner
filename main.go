@@ -113,7 +113,7 @@ func main() {
 	})
 	whitelistedMetadataOriginSystemHeaders := app.Strings(cli.StringsOpt{
 		Name:   "whitelistedMetadataOriginSystemHeaders",
-		Value:  []string{"http://cmdb.ft.com/systems/pac", "http://cmdb.ft.com/systems/next-video-editor"},
+		Value:  []string{"http://cmdb.ft.com/systems/ft-pink-annotations", "http://cmdb.ft.com/systems/next-video-editor"},
 		Desc:   "Origin-System-Ids that are supported to be processed from the PostPublicationEvents queue.",
 		EnvVar: "WHITELISTED_METADATA_ORIGIN_SYSTEM_HEADERS",
 	})
