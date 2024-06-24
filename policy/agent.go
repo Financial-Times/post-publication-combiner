@@ -11,7 +11,7 @@ import (
 var ErrEvaluatePolicy = errors.New("error evaluating policy")
 
 const (
-	PackageName = "content_msg_evaluator"
+	PackageName = "kafka_ingest"
 )
 
 type ContentPolicyResult struct {
@@ -20,7 +20,7 @@ type ContentPolicyResult struct {
 }
 
 type Agent interface {
-	EvaluateContentPolicy(q map[string]interface{}) (*ContentPolicyResult, error)
+	EvaluateKafkaIngestPolicy(q map[string]interface{}) (*ContentPolicyResult, error)
 }
 
 type OpenPolicyAgent struct {
@@ -35,7 +35,7 @@ func NewOpenPolicyAgent(c *opa.OpenPolicyAgentClient, l *logger.UPPLogger) *Open
 	}
 }
 
-func (o *OpenPolicyAgent) EvaluateContentPolicy(
+func (o *OpenPolicyAgent) EvaluateKafkaIngestPolicy(
 	q map[string]interface{},
 ) (*ContentPolicyResult, error) {
 	r := &ContentPolicyResult{}

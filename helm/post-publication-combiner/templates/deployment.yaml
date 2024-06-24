@@ -76,8 +76,8 @@ spec:
               key: msk.kafka.broker.url
         - name: OPEN_POLICY_AGENT_ADDRESS
           value: {{ .Values.env.OPEN_POLICY_AGENT_ADDRESS }}
-        - name: OPEN_POLICY_AGENT_POLICY_PATH
-          value: {{ .Values.env.OPEN_POLICY_AGENT_POLICY_PATH }}
+        - name: OPEN_POLICY_AGENT_KAFKA_INGEST_PATH
+          value: {{ .Values.env.OPEN_POLICY_AGENT_KAFKA_INGEST_PATH }}
         ports:
         - containerPort: 8080
         livenessProbe:

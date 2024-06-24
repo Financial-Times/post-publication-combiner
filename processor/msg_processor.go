@@ -93,20 +93,20 @@ func (p *MsgProcessor) processContentMsg(m kafka.FTMessage) {
 		return
 	}
 
-	var opaInput map[string]interface{}
-	if err := json.Unmarshal([]byte(m.Body), &opaInput); err != nil {
-		log.WithError(err).Error("Could not unmarshal message")
+	var q map[string]interface{}
+	if err := json.Unmarshal([]byte(m.Body), &q); err != nil {
+		log.WithError(err).Error("Could not unmarshal the OPA Kafka Ingest query.")
 		return
 	}
 
-	result, err := p.opaAgent.EvaluateContentPolicy(opaInput)
-
+	result, err := p.opaAgent.EvaluateKafkaIngestPolicy(q)
 	if err != nil {
-		log.WithError(err).Error("Failed while evaluating message")
+		log.WithError(err).
+			Error("Could not evaluate the OPA Kafka Ingest policy while processing a content message.")
 		return
 	}
 	if result.Skip {
-		log.Error(strings.Join(result.Reasons[:], ", "))
+		log.Error(formatOPASkipReasons(result.Reasons))
 		return
 	}
 
@@ -153,7 +153,8 @@ func (p *MsgProcessor) processMetadataMsg(m kafka.FTMessage) {
 		WithField("processor", "metadata")
 
 	if !containsSubstringOf(p.config.SupportedHeaders, h) {
-		log.WithField("originSystem", h).Info("Skipped annotations with unsupported Origin-System-Id")
+		log.WithField("originSystem", h).
+			Info("Skipped annotations with unsupported Origin-System-Id")
 		return
 	}
 
@@ -165,7 +166,8 @@ func (p *MsgProcessor) processMetadataMsg(m kafka.FTMessage) {
 
 	combinedMSG, err := p.dataCombiner.GetCombinedModelForAnnotations(ann)
 	if err != nil {
-		log.WithError(err).Error("Error obtaining the combined message. Content couldn't get read. Message will be skipped.")
+		log.WithError(err).
+			Error("Error obtaining the combined message. Content couldn't get read. Message will be skipped.")
 		return
 	}
 
@@ -176,6 +178,17 @@ func (p *MsgProcessor) processMetadataMsg(m kafka.FTMessage) {
 	uuid := combinedMSG.Content.getUUID()
 	if uuid == "" {
 		log.Warn("Skipped. Could not find content when processing an annotations publish event.")
+		return
+	}
+
+	result, err := p.opaAgent.EvaluateKafkaIngestPolicy(combinedMSG.Content)
+	if err != nil {
+		log.WithError(err).
+			Error("Could not evaluate the OPA Kafka Ingest policy while processing a metadata message.")
+		return
+	}
+	if result.Skip {
+		log.Error(formatOPASkipReasons(result.Reasons))
 		return
 	}
 
@@ -207,4 +220,8 @@ func containsSubstringOf(array []string, element string) bool {
 		}
 	}
 	return false
+}
+
+func formatOPASkipReasons(r []string) string {
+	return strings.Join(r[:], ", ")
 }

@@ -32,10 +32,14 @@ func TestAgent_EvaluateContentPolicy(t *testing.T) {
 			name: "Evaluate a Skipping Policy Decision",
 			server: createHTTPTestServer(
 				t,
-				fmt.Sprintf(`{"decision_id": %q, "result": {"skip": true, "reasons": [%q]}}`, testDecisionID, errMsgЕditorialDeskCB),
+				fmt.Sprintf(
+					`{"decision_id": %q, "result": {"skip": true, "reasons": [%q]}}`,
+					testDecisionID,
+					errMsgЕditorialDeskCB,
+				),
 			),
 			paths: map[string]string{
-				PackageName: "post_publication_combiner/content_msg_evaluator",
+				PackageName: "kafka/ingest",
 			},
 			query: map[string]interface{}{
 				"editorialDesk": "/FT/Professional/Central Banking", // This is informative and is not being used during test evaluation
@@ -53,7 +57,7 @@ func TestAgent_EvaluateContentPolicy(t *testing.T) {
 				fmt.Sprintf(`{"decision_id": %q, "result": {"skip": false}}`, testDecisionID),
 			),
 			paths: map[string]string{
-				PackageName: "post_publication_combiner/content_msg_evaluator",
+				PackageName: "kafka/ingest",
 			},
 			query: map[string]interface{}{
 				"editorialDesk": "/FT/Money", // This is informative and is not being used during test evaluation
@@ -85,7 +89,7 @@ func TestAgent_EvaluateContentPolicy(t *testing.T) {
 
 			o := NewOpenPolicyAgent(c, l)
 
-			result, err := o.EvaluateContentPolicy(test.query)
+			result, err := o.EvaluateKafkaIngestPolicy(test.query)
 
 			if err != nil {
 				if !errors.Is(err, test.expectedError) {
