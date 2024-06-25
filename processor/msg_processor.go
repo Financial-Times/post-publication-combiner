@@ -164,6 +164,8 @@ func (p *MsgProcessor) processMetadataMsg(m kafka.FTMessage) {
 		return
 	}
 
+	log.Info(fmt.Sprintf("Content URI: %s", ann.ContentURI))
+
 	combinedMSG, err := p.dataCombiner.GetCombinedModelForAnnotations(ann)
 	if err != nil {
 		log.WithError(err).
