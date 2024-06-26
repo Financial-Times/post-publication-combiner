@@ -505,7 +505,10 @@ func TestProcessMetadataMsg_Forward_Skipped(t *testing.T) {
 	log, hook := testLogger()
 
 	opaAgent := mockOpaAgent{
-		returnResult: &policy.ContentPolicyResult{},
+		returnResult: &policy.ContentPolicyResult{
+			Skip:    true,
+			Reasons: []string{"Content UUID was not found. Message will be skipped"},
+		},
 	}
 
 	p := &MsgProcessor{
@@ -521,11 +524,11 @@ func TestProcessMetadataMsg_Forward_Skipped(t *testing.T) {
 
 	p.processMetadataMsg(m)
 
-	assert.Equal(t, "warning", hook.LastEntry().Level.String())
+	assert.Equal(t, "error", hook.LastEntry().Level.String())
 	assert.Equal(t, "some-tid1", hook.LastEntry().Data["transaction_id"])
 	assert.Equal(
 		t,
-		"Skipped. Could not find content when processing an annotations publish event.",
+		"Content UUID was not found. Message will be skipped",
 		hook.LastEntry().Message,
 	)
 	assert.Equal(t, 2, len(hook.Entries))
