@@ -174,12 +174,6 @@ func (p *MsgProcessor) processMetadataMsg(m kafka.FTMessage) {
 		log.Warn("Could not find internal content when processing an annotations publish event.")
 	}
 
-	uuid := combinedMSG.Content.getUUID()
-	if uuid == "" {
-		log.Warn("Skipped. Could not find content when processing an annotations publish event.")
-		return
-	}
-
 	result, err := p.opaAgent.EvaluateKafkaIngestPolicy(
 		combinedMSG.Content,
 		policy.KafkaIngestMetadata,
@@ -194,7 +188,7 @@ func (p *MsgProcessor) processMetadataMsg(m kafka.FTMessage) {
 		return
 	}
 
-	log = log.WithUUID(uuid)
+	log = log.WithUUID(combinedMSG.Content.getUUID())
 
 	if err = p.forwarder.filterAndForwardMsg(m.Headers, &combinedMSG); err != nil {
 		log.WithError(err).Error("Failed to forward message to Kafka")
