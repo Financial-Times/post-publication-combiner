@@ -31,6 +31,7 @@ type mockOpaAgent struct {
 
 func (m mockOpaAgent) EvaluateKafkaIngestPolicy(
 	_ map[string]interface{},
+	_ policy.Policy,
 ) (*policy.ContentPolicyResult, error) {
 	return m.returnResult, m.returnError
 }
@@ -422,6 +423,9 @@ func TestProcessMetadataMsg_Combiner_Errors(t *testing.T) {
 		"Error obtaining the combined message. Content couldn't get read. Message will be skipped.",
 		hook.LastEntry().Message,
 	)
+	for _, e := range hook.Entries {
+		fmt.Println(e.Message)
+	}
 	assert.Equal(t, 1, len(hook.Entries))
 }
 

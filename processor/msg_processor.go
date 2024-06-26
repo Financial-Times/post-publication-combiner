@@ -99,7 +99,7 @@ func (p *MsgProcessor) processContentMsg(m kafka.FTMessage) {
 		return
 	}
 
-	result, err := p.opaAgent.EvaluateKafkaIngestPolicy(q)
+	result, err := p.opaAgent.EvaluateKafkaIngestPolicy(q, policy.KafkaIngestContent)
 	if err != nil {
 		log.WithError(err).
 			Error("Could not evaluate the OPA Kafka Ingest policy while processing a content message.")
@@ -116,7 +116,6 @@ func (p *MsgProcessor) processContentMsg(m kafka.FTMessage) {
 	var combinedMSG CombinedModel
 	if cm.ContentModel.isDeleted() {
 		combinedMSG.UUID = uuid
-		combinedMSG.ContentURI = cm.ContentURI
 		combinedMSG.LastModified = cm.LastModified
 		combinedMSG.Deleted = true
 	} else {
@@ -127,9 +126,9 @@ func (p *MsgProcessor) processContentMsg(m kafka.FTMessage) {
 				Error("Error obtaining the combined message. Metadata could not be read. Message will be skipped.")
 			return
 		}
-
-		combinedMSG.ContentURI = cm.ContentURI
 	}
+
+	combinedMSG.ContentURI = cm.ContentURI
 
 	if combinedMSG.InternalContent == nil {
 		log.Warn("Could not find internal content when processing a content publish event.")
@@ -164,8 +163,6 @@ func (p *MsgProcessor) processMetadataMsg(m kafka.FTMessage) {
 		return
 	}
 
-	log.Info(fmt.Sprintf("Content URI: %s", ann.ContentURI))
-
 	combinedMSG, err := p.dataCombiner.GetCombinedModelForAnnotations(ann)
 	if err != nil {
 		log.WithError(err).
@@ -183,7 +180,10 @@ func (p *MsgProcessor) processMetadataMsg(m kafka.FTMessage) {
 		return
 	}
 
-	result, err := p.opaAgent.EvaluateKafkaIngestPolicy(combinedMSG.Content)
+	result, err := p.opaAgent.EvaluateKafkaIngestPolicy(
+		combinedMSG.Content,
+		policy.KafkaIngestMetadata,
+	)
 	if err != nil {
 		log.WithError(err).
 			Error("Could not evaluate the OPA Kafka Ingest policy while processing a metadata message.")

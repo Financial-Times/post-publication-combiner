@@ -20,16 +20,21 @@ const (
 )
 
 func TestAgent_EvaluateContentPolicy(t *testing.T) {
+	paths := map[string]string{
+		KafkaIngestContent.String():  "kafka/ingest_content",
+		KafkaIngestMetadata.String(): "kafka/ingest_metadata",
+	}
+
 	tests := []struct {
 		name           string
 		server         *httptest.Server
-		paths          map[string]string
 		query          map[string]interface{} // query field is informative and is not being used during tests evaluation
+		policy         Policy
 		expectedResult *ContentPolicyResult
 		expectedError  error
 	}{
 		{
-			name: "Evaluate a Skipping Policy Decision",
+			name: "Evaluate a Skipping Kafka Ingest Content Policy Decision",
 			server: createHTTPTestServer(
 				t,
 				fmt.Sprintf(
@@ -38,12 +43,10 @@ func TestAgent_EvaluateContentPolicy(t *testing.T) {
 					errMsgЕditorialDeskCB,
 				),
 			),
-			paths: map[string]string{
-				PackageName: "kafka/ingest",
-			},
 			query: map[string]interface{}{
 				"editorialDesk": "/FT/Professional/Central Banking", // This is informative and is not being used during test evaluation
 			},
+			policy: KafkaIngestContent,
 			expectedResult: &ContentPolicyResult{
 				Skip:    true,
 				Reasons: []string{errMsgЕditorialDeskCB},
@@ -51,17 +54,50 @@ func TestAgent_EvaluateContentPolicy(t *testing.T) {
 			expectedError: nil,
 		},
 		{
-			name: "Evaluate a Non-Skipping Policy Decision",
+			name: "Evaluate a Non-Skipping Kafka Ingest Content Policy Decision",
 			server: createHTTPTestServer(
 				t,
 				fmt.Sprintf(`{"decision_id": %q, "result": {"skip": false}}`, testDecisionID),
 			),
-			paths: map[string]string{
-				PackageName: "kafka/ingest",
-			},
 			query: map[string]interface{}{
-				"editorialDesk": "/FT/Money", // This is informative and is not being used during test evaluation
+				"editorialDesk": "/FT/Pink", // This is informative and is not being used during test evaluation
 			},
+			policy: KafkaIngestContent,
+			expectedResult: &ContentPolicyResult{
+				Skip: false,
+			},
+			expectedError: nil,
+		},
+		{
+			name: "Evaluate a Skipping Kafka Ingest Metadata Policy Decision",
+			server: createHTTPTestServer(
+				t,
+				fmt.Sprintf(
+					`{"decision_id": %q, "result": {"skip": true, "reasons": [%q]}}`,
+					testDecisionID,
+					errMsgЕditorialDeskCB,
+				),
+			),
+			query: map[string]interface{}{
+				"editorialDesk": "/FT/Professional/Central Banking", // This is informative and is not being used during test evaluation
+			},
+			policy: KafkaIngestMetadata,
+			expectedResult: &ContentPolicyResult{
+				Skip:    true,
+				Reasons: []string{errMsgЕditorialDeskCB},
+			},
+			expectedError: nil,
+		},
+		{
+			name: "Evaluate a Non-Skipping Kafka Ingest Metadata Policy Decision",
+			server: createHTTPTestServer(
+				t,
+				fmt.Sprintf(`{"decision_id": %q, "result": {"skip": false}}`, testDecisionID),
+			),
+			query: map[string]interface{}{
+				"editorialDesk": "/FT/Pink", // This is informative and is not being used during test evaluation
+			},
+			policy: KafkaIngestMetadata,
 			expectedResult: &ContentPolicyResult{
 				Skip: false,
 			},
@@ -73,8 +109,8 @@ func TestAgent_EvaluateContentPolicy(t *testing.T) {
 				t,
 				``,
 			),
-			paths:          make(map[string]string),
 			query:          make(map[string]interface{}),
+			policy:         KafkaIngestContent,
 			expectedResult: nil,
 			expectedError:  ErrEvaluatePolicy,
 		},
@@ -85,11 +121,11 @@ func TestAgent_EvaluateContentPolicy(t *testing.T) {
 			defer test.server.Close()
 
 			l := logger.NewUPPLogger("post-publication-combiner", "INFO")
-			c := opa.NewOpenPolicyAgentClient(test.server.URL, test.paths, opa.WithLogger(l))
+			c := opa.NewOpenPolicyAgentClient(test.server.URL, paths, opa.WithLogger(l))
 
 			o := NewOpenPolicyAgent(c, l)
 
-			result, err := o.EvaluateKafkaIngestPolicy(test.query)
+			result, err := o.EvaluateKafkaIngestPolicy(test.query, test.policy)
 
 			if err != nil {
 				if !errors.Is(err, test.expectedError) {

@@ -10,9 +10,23 @@ import (
 
 var ErrEvaluatePolicy = errors.New("error evaluating policy")
 
+type Policy int
+
 const (
-	PackageName = "kafka_ingest"
+	KafkaIngestContent Policy = iota
+	KafkaIngestMetadata
 )
+
+func (p Policy) String() string {
+	switch p {
+	case KafkaIngestContent:
+		return "kafka_ingest_content"
+	case KafkaIngestMetadata:
+		return "kafka_ingest_metadata"
+	}
+
+	return ""
+}
 
 type ContentPolicyResult struct {
 	Skip    bool     `json:"skip"`
@@ -20,7 +34,7 @@ type ContentPolicyResult struct {
 }
 
 type Agent interface {
-	EvaluateKafkaIngestPolicy(q map[string]interface{}) (*ContentPolicyResult, error)
+	EvaluateKafkaIngestPolicy(q map[string]interface{}, p Policy) (*ContentPolicyResult, error)
 }
 
 type OpenPolicyAgent struct {
@@ -37,15 +51,21 @@ func NewOpenPolicyAgent(c *opa.OpenPolicyAgentClient, l *logger.UPPLogger) *Open
 
 func (o *OpenPolicyAgent) EvaluateKafkaIngestPolicy(
 	q map[string]interface{},
+	p Policy,
 ) (*ContentPolicyResult, error) {
 	r := &ContentPolicyResult{}
 
-	decisionID, err := o.client.DoQuery(q, PackageName, r)
+	decisionID, err := o.client.DoQuery(q, p.String(), r)
 	if err != nil {
 		return nil, fmt.Errorf("%w: Content Policy: %w", ErrEvaluatePolicy, err)
 	}
 
-	o.log.Infof("Evaluated Content Policy: decisionID: %q, result: %v", decisionID, r)
+	o.log.Infof(
+		"Evaluated Kafka Ingest Policy: %s: decisionID: %q, result: %v",
+		p.String(),
+		decisionID,
+		r,
+	)
 
 	return r, nil
 }

@@ -146,10 +146,15 @@ func main() {
 		Desc:   "Open policy agent sidecar address",
 		EnvVar: "OPEN_POLICY_AGENT_ADDRESS",
 	})
-	opaKafkaIngestPolicyPath := app.String(cli.StringOpt{
-		Name:   "opaKafkaIngestPolicyPath",
-		Desc:   "The path, inside the agent, to the Kafka Ingest OPA policy.",
-		EnvVar: "OPEN_POLICY_AGENT_KAFKA_INGEST_PATH",
+	opaKafkaIngestContentPolicyPath := app.String(cli.StringOpt{
+		Name:   "opaKafkaIngestContentPolicyPath",
+		Desc:   "The path, inside the agent, to the policy for Kafka ingestion of content.",
+		EnvVar: "OPEN_POLICY_AGENT_KAFKA_INGEST_CONTENT_PATH",
+	})
+	opaKafkaIngestMetadataPolicyPath := app.String(cli.StringOpt{
+		Name:   "opaKafkaIngestMetadataPolicyPath",
+		Desc:   "The path, inside the agent, to the policy for Kafka ingestion of metadata (annotations).",
+		EnvVar: "OPEN_POLICY_AGENT_KAFKA_INGEST_METADATA_PATH",
 	})
 
 	log := logger.NewUPPLogger(serviceName, *logLevel)
@@ -238,13 +243,14 @@ func main() {
 			}
 		}(producer)
 
-		paths := map[string]string{
-			policy.PackageName: *opaKafkaIngestPolicyPath,
+		policyPaths := map[string]string{
+			policy.KafkaIngestContent.String():  *opaKafkaIngestContentPolicyPath,
+			policy.KafkaIngestMetadata.String(): *opaKafkaIngestMetadataPolicyPath,
 		}
 
 		opaClient := opa.NewOpenPolicyAgentClient(
 			*openPolicyAgentAddress,
-			paths,
+			policyPaths,
 			opa.WithLogger(log),
 		)
 		opaAgent := policy.NewOpenPolicyAgent(opaClient, log)
