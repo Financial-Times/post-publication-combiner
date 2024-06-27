@@ -29,7 +29,10 @@ const (
 )
 
 func main() {
-	app := cli.App(serviceName, "Service listening to content and metadata PostPublication events, and forwards a combined message to the queue")
+	app := cli.App(
+		serviceName,
+		"Service listening to content and metadata PostPublication events, and forwards a combined message to the queue",
+	)
 
 	logLevel := app.String(cli.StringOpt{
 		Name:   "logLevel",
@@ -112,8 +115,11 @@ func main() {
 		EnvVar: "CONTENT_COLLECTION_RW_ENDPOINT",
 	})
 	whitelistedMetadataOriginSystemHeaders := app.Strings(cli.StringsOpt{
-		Name:   "whitelistedMetadataOriginSystemHeaders",
-		Value:  []string{"http://cmdb.ft.com/systems/pac", "http://cmdb.ft.com/systems/next-video-editor"},
+		Name: "whitelistedMetadataOriginSystemHeaders",
+		Value: []string{
+			"http://cmdb.ft.com/systems/pac",
+			"http://cmdb.ft.com/systems/next-video-editor",
+		},
 		Desc:   "Origin-System-Ids that are supported to be processed from the PostPublicationEvents queue.",
 		EnvVar: "WHITELISTED_METADATA_ORIGIN_SYSTEM_HEADERS",
 	})
@@ -140,10 +146,15 @@ func main() {
 		Desc:   "Open policy agent sidecar address",
 		EnvVar: "OPEN_POLICY_AGENT_ADDRESS",
 	})
-	opaPolicyPath := app.String(cli.StringOpt{
-		Name:   "openPolicyAgentPolicyPath",
-		Desc:   "The path to the opa module in OPA module",
-		EnvVar: "OPEN_POLICY_AGENT_POLICY_PATH",
+	opaKafkaIngestContentPolicyPath := app.String(cli.StringOpt{
+		Name:   "opaKafkaIngestContentPolicyPath",
+		Desc:   "The path, inside the agent, to the policy for Kafka ingestion of content.",
+		EnvVar: "OPEN_POLICY_AGENT_KAFKA_INGEST_CONTENT_PATH",
+	})
+	opaKafkaIngestMetadataPolicyPath := app.String(cli.StringOpt{
+		Name:   "opaKafkaIngestMetadataPolicyPath",
+		Desc:   "The path, inside the agent, to the policy for Kafka ingestion of metadata (annotations).",
+		EnvVar: "OPEN_POLICY_AGENT_KAFKA_INGEST_METADATA_PATH",
 	})
 
 	log := logger.NewUPPLogger(serviceName, *logLevel)
@@ -205,7 +216,12 @@ func main() {
 		docStoreURL := *docStoreAPIBaseURL + *docStoreAPIEndpoint
 		internalContentURL := *internalContentAPIBaseURL + *internalContentAPIEndpoint
 		contentCollectionURL := *contentCollectionRWBaseURL + *contentCollectionRWEndpoint
-		dataCombiner := processor.NewDataCombiner(docStoreURL, internalContentURL, contentCollectionURL, client)
+		dataCombiner := processor.NewDataCombiner(
+			docStoreURL,
+			internalContentURL,
+			contentCollectionURL,
+			client,
+		)
 
 		producerConfig := kafka.ProducerConfig{
 			BrokersConnectionString: *kafkaAddress,
@@ -227,11 +243,16 @@ func main() {
 			}
 		}(producer)
 
-		paths := map[string]string{
-			policy.PackageName: *opaPolicyPath,
+		policyPaths := map[string]string{
+			policy.KafkaIngestContent.String():  *opaKafkaIngestContentPolicyPath,
+			policy.KafkaIngestMetadata.String(): *opaKafkaIngestMetadataPolicyPath,
 		}
 
-		opaClient := opa.NewOpenPolicyAgentClient(*openPolicyAgentAddress, paths, opa.WithLogger(log))
+		opaClient := opa.NewOpenPolicyAgentClient(
+			*openPolicyAgentAddress,
+			policyPaths,
+			opa.WithLogger(log),
+		)
 		opaAgent := policy.NewOpenPolicyAgent(opaClient, log)
 
 		processorConf := processor.NewMsgProcessorConfig(
@@ -270,7 +291,11 @@ func main() {
 			}
 		}(forcedMessageProducer)
 
-		proc := processor.NewRequestProcessor(dataCombiner, forcedMessageProducer, *whitelistedContentTypes)
+		proc := processor.NewRequestProcessor(
+			dataCombiner,
+			forcedMessageProducer,
+			*whitelistedContentTypes,
+		)
 
 		reqHandler := &requestHandler{
 			requestProcessor: proc,
@@ -278,7 +303,14 @@ func main() {
 		}
 
 		// Since the health check for all producers and consumers just checks /topics for a response, we pick a producer and a consumer at random
-		healthcheckHandler := NewCombinerHealthcheck(log, producer, consumer, client, *docStoreAPIBaseURL, *internalContentAPIBaseURL)
+		healthcheckHandler := NewCombinerHealthcheck(
+			log,
+			producer,
+			consumer,
+			client,
+			*docStoreAPIBaseURL,
+			*internalContentAPIBaseURL,
+		)
 
 		routeRequests(log, port, reqHandler, healthcheckHandler)
 	}

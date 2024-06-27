@@ -93,20 +93,20 @@ func (p *MsgProcessor) processContentMsg(m kafka.FTMessage) {
 		return
 	}
 
-	var opaInput map[string]interface{}
-	if err := json.Unmarshal([]byte(m.Body), &opaInput); err != nil {
-		log.WithError(err).Error("Could not unmarshal message")
+	var q map[string]interface{}
+	if err := json.Unmarshal([]byte(m.Body), &q); err != nil {
+		log.WithError(err).Error("Could not unmarshal the OPA Kafka Ingest query.")
 		return
 	}
 
-	result, err := p.opaAgent.EvaluateContentPolicy(opaInput)
-
+	result, err := p.opaAgent.EvaluateKafkaIngestPolicy(q, policy.KafkaIngestContent)
 	if err != nil {
-		log.WithError(err).Error("Failed while evaluating message")
+		log.WithError(err).
+			Error("Could not evaluate the OPA Kafka Ingest policy while processing a content message.")
 		return
 	}
 	if result.Skip {
-		log.Error(strings.Join(result.Reasons[:], ", "))
+		log.Error(formatOPASkipReasons(result.Reasons))
 		return
 	}
 
@@ -116,7 +116,6 @@ func (p *MsgProcessor) processContentMsg(m kafka.FTMessage) {
 	var combinedMSG CombinedModel
 	if cm.ContentModel.isDeleted() {
 		combinedMSG.UUID = uuid
-		combinedMSG.ContentURI = cm.ContentURI
 		combinedMSG.LastModified = cm.LastModified
 		combinedMSG.Deleted = true
 	} else {
@@ -127,9 +126,9 @@ func (p *MsgProcessor) processContentMsg(m kafka.FTMessage) {
 				Error("Error obtaining the combined message. Metadata could not be read. Message will be skipped.")
 			return
 		}
-
-		combinedMSG.ContentURI = cm.ContentURI
 	}
+
+	combinedMSG.ContentURI = cm.ContentURI
 
 	if combinedMSG.InternalContent == nil {
 		log.Warn("Could not find internal content when processing a content publish event.")
@@ -153,7 +152,8 @@ func (p *MsgProcessor) processMetadataMsg(m kafka.FTMessage) {
 		WithField("processor", "metadata")
 
 	if !containsSubstringOf(p.config.SupportedHeaders, h) {
-		log.WithField("originSystem", h).Info("Skipped annotations with unsupported Origin-System-Id")
+		log.WithField("originSystem", h).
+			Info("Skipped annotations with unsupported Origin-System-Id")
 		return
 	}
 
@@ -165,7 +165,8 @@ func (p *MsgProcessor) processMetadataMsg(m kafka.FTMessage) {
 
 	combinedMSG, err := p.dataCombiner.GetCombinedModelForAnnotations(ann)
 	if err != nil {
-		log.WithError(err).Error("Error obtaining the combined message. Content couldn't get read. Message will be skipped.")
+		log.WithError(err).
+			Error("Error obtaining the combined message. Content couldn't get read. Message will be skipped.")
 		return
 	}
 
@@ -173,13 +174,21 @@ func (p *MsgProcessor) processMetadataMsg(m kafka.FTMessage) {
 		log.Warn("Could not find internal content when processing an annotations publish event.")
 	}
 
-	uuid := combinedMSG.Content.getUUID()
-	if uuid == "" {
-		log.Warn("Skipped. Could not find content when processing an annotations publish event.")
+	result, err := p.opaAgent.EvaluateKafkaIngestPolicy(
+		combinedMSG.Content,
+		policy.KafkaIngestMetadata,
+	)
+	if err != nil {
+		log.WithError(err).
+			Error("Could not evaluate the OPA Kafka Ingest policy while processing a metadata message.")
+		return
+	}
+	if result.Skip {
+		log.Error(formatOPASkipReasons(result.Reasons))
 		return
 	}
 
-	log = log.WithUUID(uuid)
+	log = log.WithUUID(combinedMSG.Content.getUUID())
 
 	if err = p.forwarder.filterAndForwardMsg(m.Headers, &combinedMSG); err != nil {
 		log.WithError(err).Error("Failed to forward message to Kafka")
@@ -207,4 +216,8 @@ func containsSubstringOf(array []string, element string) bool {
 		}
 	}
 	return false
+}
+
+func formatOPASkipReasons(r []string) string {
+	return strings.Join(r[:], ", ")
 }

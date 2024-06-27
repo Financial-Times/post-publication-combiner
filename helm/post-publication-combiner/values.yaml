@@ -37,4 +37,5 @@ env:
   WHITELISTED_METADATA_ORIGIN_SYSTEM_HEADERS: "http://cmdb.ft.com/systems/pac, http://cmdb.ft.com/systems/next-video-editor"
   WHITELISTED_CONTENT_TYPES: "Article, Video, MediaResource, Audio, ContentPackage, LiveBlogPackage, LiveBlogPost, ContentCollection, ImageSet, Image, Graphic, LiveEvent, Clip, ClipSet, ,"
   OPEN_POLICY_AGENT_ADDRESS: "http://localhost:8181"
-  OPEN_POLICY_AGENT_POLICY_PATH: "post_publication_combiner/content_msg_evaluator"
+  OPEN_POLICY_AGENT_KAFKA_INGEST_CONTENT_PATH: "kafka/ingest_content"
+  OPEN_POLICY_AGENT_KAFKA_INGEST_METADATA_PATH: "kafka/ingest_metadata"
