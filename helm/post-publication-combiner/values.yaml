@@ -35,7 +35,7 @@ env:
   CONTENT_COLLECTION_RW_BASE_URL: http://content-collection-rw-neo4j:8080
   CONTENT_COLLECTION_RW_ENDPOINT: "/content-collection/content-package/{uuid}"
   WHITELISTED_METADATA_ORIGIN_SYSTEM_HEADERS: "http://cmdb.ft.com/systems/pac, http://cmdb.ft.com/systems/next-video-editor"
-  WHITELISTED_CONTENT_TYPES: "Article, Video, MediaResource, Audio, ContentPackage, LiveBlogPackage, LiveBlogPost, ContentCollection, ImageSet, Image, Graphic, LiveEvent, Clip, ClipSet, ,"
+  WHITELISTED_CONTENT_TYPES: "Article, Video, MediaResource, Audio, ContentPackage, LiveBlogPackage, LiveBlogPost, ContentCollection, ImageSet, Image, Graphic, LiveEvent, Clip, ClipSet, Content, ,"
   OPEN_POLICY_AGENT_ADDRESS: "http://localhost:8181"
   OPEN_POLICY_AGENT_KAFKA_INGEST_CONTENT_PATH: "kafka/ingest_content"
   OPEN_POLICY_AGENT_KAFKA_INGEST_METADATA_PATH: "kafka/ingest_metadata"
