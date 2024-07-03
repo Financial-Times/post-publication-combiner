@@ -168,11 +168,10 @@ func TestProcessContentMsg_Forwarder_Errors(t *testing.T) {
 	}
 
 	p := &MsgProcessor{
+		log:          log,
 		config:       config,
 		dataCombiner: dummyDataCombiner,
-		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes),
-		log:          log,
-		opaAgent:     opaAgent,
+		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes, log, opaAgent),
 	}
 
 	assert.Nil(t, hook.LastEntry())
@@ -233,11 +232,10 @@ func TestProcessContentMsg_Successfully_Forwarded(t *testing.T) {
 	}
 
 	p := &MsgProcessor{
+		log:          log,
 		config:       config,
 		dataCombiner: dummyDataCombiner,
-		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes),
-		log:          log,
-		opaAgent:     opaAgent,
+		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes, log, opaAgent),
 	}
 
 	assert.Nil(t, hook.LastEntry())
@@ -288,11 +286,10 @@ func TestProcessContentMsg_DeleteEvent_Successfully_Forwarded(t *testing.T) {
 	}
 
 	p := &MsgProcessor{
+		log:          log,
 		config:       config,
 		dataCombiner: dummyDataCombiner,
-		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes),
-		log:          log,
-		opaAgent:     opaAgent,
+		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes, log, opaAgent),
 	}
 
 	assert.Nil(t, hook.LastEntry())
@@ -458,11 +455,10 @@ func TestProcessMetadataMsg_Forwarder_Errors(t *testing.T) {
 	}
 
 	p := &MsgProcessor{
+		log:          log,
 		config:       config,
 		dataCombiner: dummyDataCombiner,
-		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes),
-		log:          log,
-		opaAgent:     opaAgent,
+		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes, log, opaAgent),
 	}
 
 	assert.Nil(t, hook.LastEntry())
@@ -512,11 +508,10 @@ func TestProcessMetadataMsg_Forward_Skipped(t *testing.T) {
 	}
 
 	p := &MsgProcessor{
+		log:          log,
 		config:       config,
 		dataCombiner: dummyDataCombiner,
-		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes),
-		log:          log,
-		opaAgent:     opaAgent,
+		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes, log, opaAgent),
 	}
 
 	assert.Nil(t, hook.LastEntry())
@@ -528,10 +523,11 @@ func TestProcessMetadataMsg_Forward_Skipped(t *testing.T) {
 	assert.Equal(t, "some-tid1", hook.LastEntry().Data["transaction_id"])
 	assert.Equal(
 		t,
-		"Content UUID was not found. Message will be skipped",
+		"Failed to forward message to Kafka",
 		hook.LastEntry().Message,
 	)
-	assert.Equal(t, 2, len(hook.Entries))
+	assert.Equal(t, 3, len(hook.Entries))
+	fmt.Println(hook)
 }
 
 func TestProcessMetadataMsg_Successfully_Forwarded(t *testing.T) {
@@ -604,11 +600,10 @@ func TestProcessMetadataMsg_Successfully_Forwarded(t *testing.T) {
 	}
 
 	p := &MsgProcessor{
+		log:          log,
 		config:       config,
 		dataCombiner: dummyDataCombiner,
-		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes),
-		log:          log,
-		opaAgent:     opaAgent,
+		forwarder:    newForwarder(dummyMsgProducer, allowedContentTypes, log, opaAgent),
 	}
 
 	assert.Nil(t, hook.LastEntry())
@@ -652,8 +647,15 @@ func TestForwardMsg(t *testing.T) {
 		var model CombinedModel
 		require.NoError(t, json.Unmarshal([]byte(testCase.body), &model))
 
+		log, hook := testLogger()
+		opaAgent := mockOpaAgent{
+			returnResult: &policy.ContentPolicyResult{},
+		}
+
 		p := MsgProcessor{
 			forwarder: &forwarder{
+				log:      log,
+				opaAgent: opaAgent,
 				producer: DummyProducer{
 					t:        t,
 					expTID:   testCase.headers["X-Request-Id"],
@@ -669,6 +671,7 @@ func TestForwardMsg(t *testing.T) {
 
 		err := p.forwarder.forwardMsg(testCase.headers, &model)
 		assert.Equal(t, testCase.err, err)
+		assert.Equal(t, 0, len(hook.Entries))
 	}
 }
 

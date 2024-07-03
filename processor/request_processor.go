@@ -2,6 +2,9 @@ package processor
 
 import (
 	"fmt"
+
+	"github.com/Financial-Times/go-logger/v2"
+	"github.com/Financial-Times/post-publication-combiner/v2/policy"
 )
 
 const (
@@ -14,10 +17,10 @@ type RequestProcessor struct {
 	forwarder    *forwarder
 }
 
-func NewRequestProcessor(dataCombiner dataCombiner, producer messageProducer, allowedContentTypes []string) *RequestProcessor {
+func NewRequestProcessor(dataCombiner dataCombiner, producer messageProducer, allowedContentTypes []string, log *logger.UPPLogger, opaAgent policy.Agent) *RequestProcessor {
 	return &RequestProcessor{
 		dataCombiner: dataCombiner,
-		forwarder:    newForwarder(producer, allowedContentTypes),
+		forwarder:    newForwarder(producer, allowedContentTypes, log, opaAgent),
 	}
 }
 
