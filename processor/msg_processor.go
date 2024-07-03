@@ -49,7 +49,7 @@ func NewMsgProcessor(
 		src:          srcCh,
 		config:       config,
 		dataCombiner: dataCombiner,
-		forwarder:    newForwarder(producer, whitelistedContentTypes),
+		forwarder:    newForwarder(producer, whitelistedContentTypes, log, opaAgent),
 		log:          log,
 		opaAgent:     opaAgent,
 	}
@@ -93,27 +93,11 @@ func (p *MsgProcessor) processContentMsg(m kafka.FTMessage) {
 		return
 	}
 
-	var q map[string]interface{}
-	if err := json.Unmarshal([]byte(m.Body), &q); err != nil {
-		log.WithError(err).Error("Could not unmarshal the OPA Kafka Ingest query.")
-		return
-	}
-
-	result, err := p.opaAgent.EvaluateKafkaIngestPolicy(q, policy.KafkaIngestContent)
-	if err != nil {
-		log.WithError(err).
-			Error("Could not evaluate the OPA Kafka Ingest policy while processing a content message.")
-		return
-	}
-	if result.Skip {
-		log.Error(formatOPASkipReasons(result.Reasons))
-		return
-	}
-
 	uuid := cm.ContentModel.getUUID()
 	log = log.WithUUID(uuid)
 
 	var combinedMSG CombinedModel
+	var err error
 	if cm.ContentModel.isDeleted() {
 		combinedMSG.UUID = uuid
 		combinedMSG.LastModified = cm.LastModified
@@ -134,7 +118,7 @@ func (p *MsgProcessor) processContentMsg(m kafka.FTMessage) {
 		log.Warn("Could not find internal content when processing a content publish event.")
 	}
 
-	if err = p.forwarder.filterAndForwardMsg(m.Headers, &combinedMSG); err != nil {
+	if err := p.forwarder.filterAndForwardMsg(m.Headers, &combinedMSG); err != nil {
 		log.WithError(err).Error("Failed to forward message to Kafka")
 		return
 	}
@@ -174,20 +158,6 @@ func (p *MsgProcessor) processMetadataMsg(m kafka.FTMessage) {
 		log.Warn("Could not find internal content when processing an annotations publish event.")
 	}
 
-	result, err := p.opaAgent.EvaluateKafkaIngestPolicy(
-		combinedMSG.Content,
-		policy.KafkaIngestMetadata,
-	)
-	if err != nil {
-		log.WithError(err).
-			Error("Could not evaluate the OPA Kafka Ingest policy while processing a metadata message.")
-		return
-	}
-	if result.Skip {
-		log.Error(formatOPASkipReasons(result.Reasons))
-		return
-	}
-
 	log = log.WithUUID(combinedMSG.Content.getUUID())
 
 	if err = p.forwarder.filterAndForwardMsg(m.Headers, &combinedMSG); err != nil {
@@ -216,8 +186,4 @@ func containsSubstringOf(array []string, element string) bool {
 		}
 	}
 	return false
-}
-
-func formatOPASkipReasons(r []string) string {
-	return strings.Join(r[:], ", ")
 }
