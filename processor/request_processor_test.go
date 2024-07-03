@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/Financial-Times/kafka-client-go/v4"
+	"github.com/Financial-Times/post-publication-combiner/v2/policy"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -188,10 +189,16 @@ func TestRequestProcessor_ForcePublication(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			requestProcessor := NewRequestProcessor(test.dataCombiner, test.messageProducer, allowedContentTypes)
+			log, hook := testLogger()
+			opaAgent := mockOpaAgent{
+				returnResult: &policy.ContentPolicyResult{},
+			}
+
+			requestProcessor := NewRequestProcessor(test.dataCombiner, test.messageProducer, allowedContentTypes, log, opaAgent)
 
 			err := requestProcessor.ForcePublication(testUUID, test.publishTID)
 			assert.ErrorIs(t, err, test.err)
+			assert.Nil(t, hook.LastEntry())
 		})
 	}
 }

@@ -295,6 +295,8 @@ func main() {
 			dataCombiner,
 			forcedMessageProducer,
 			*whitelistedContentTypes,
+			log,
+			opaAgent,
 		)
 
 		reqHandler := &requestHandler{
